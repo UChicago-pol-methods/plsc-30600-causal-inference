@@ -1,5 +1,5 @@
 # Welcome to Causal Inference
-This is the github repository for Causal Inference (PLSC30600) at the University of Chicago, taught by [Anton Strezhnev]("https://www.antonstrezhnev.com"). Arthur Yu is the teaching assistant.
+This is the github repository for Causal Inference (PLSC30600) at the University of Chicago, taught by [Anton Strezhnev](https://www.antonstrezhnev.com). Arthur Yu is the teaching assistant.
 
 # Getting course materials
 We use this repository to distribute course materials: slides, assignments, data, and lab materials.
