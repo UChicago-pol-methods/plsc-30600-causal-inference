@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 # Using simulation to understand properties of random variables
@@ -36,4 +37,63 @@ In conducting a simulation, you will typically rely on two sets of programming t
 
 ## Random number generators
 
-R has a suite of functions to allow you to generate (pseudo)-random numbers from particular distributions
+R has a suite of functions to allow you to generate (pseudo)-random numbers from particular distributions. These functions typically start with `r` and the name of the distribution. For example, the function to generate random draws from the normal is `rnorm`. Built-in functions cover most of the common ones: uniform, bernoulli, binomial, normal, poisson, etc... and other packages exist for more esoteric distributions. Because computers are deterministic, the algorithms that generate these numbers are not truly "random" in the sense that the exact sequence of random numbers can be reproduced if one knows the initial "seed" for the algorithm. These random number generators create sequences of numbers that have the *properties* of randomness (e.g. independence), but they can be replicated for a fixed seed. This is actually great for us researchers since it ensures replicability -- even if you are using a simulation, I can reproduce your exact numeric results if I fix the seed. However, this does mean that you need to be aware of when you set the seed in your algorithm. Set it once in your script or code fragment and don't change it.
+
+```{r rng normal}
+# Set the seed for a random number generator
+set.seed(60615)
+
+# Generate N=100 random normal variates
+rand_norm <- rnorm(100, mean=2, sd=1)
+
+# Calculate the mean - it's close to 2
+print(mean(rand_norm))
+
+# Note that if I run this fragment again and again, I will get the exact
+# same values in rand_norm - this is because the seed is fixed at the top of
+# the fragment! 
+```
+
+## Loops
+
+In a simulation, you will need to generate draws from a random variable *multiple times*. Often this will be some sort of function of other random variables -- remember, all an estimator is is a function of other random variables. There will not be an existing routine that does this for you, so you will need to write your own code that takes as input some random numbers and generates the desired output (e.g. a difference-in-means, a regression estimator, etc...). You probably don't want to copy and paste this code 1 million times, so you'll need a way of repeating the same process with different random inputs and storing the results. 
+
+The easiest way of doing this is a `for` loop. Here we will use monte carlo simulation to approximate the mean of the sampling distribution of the sample mean with $N = 30$, $E[X_i] = .5$, $X_i \sim \text{Bernoulli}$ i.i.d.
+
+```{r for loop example}
+set.seed(60615) # Set random seed
+niter <- 100000 # Number of for loop iterations - this can be as big as we need for precision
+sample_means = rep(NA, niter) # Placeholder vector to store loop results
+for (i in 1:niter){ # The loop will execute niter times, each time i will increment by 1 but everything else will stay the same inside the loop
+  sample_means[i] <- mean(rbinom(n=50, size=1, prob=.5))
+}
+# What's the mean of the sampling distribution? The population mean E[X_i]
+mean(sample_means)
+
+# What's its distribution? It's not bernoulli! It's (roughly) normal (by the CLT)
+tibble(xbar = sample_means) %>% ggplot(aes(x=xbar)) +
+  geom_histogram(aes(y = ..density..), binwidth=.02) +  # Do this to get the histogram density and not frequency
+  xlab("Sample mean") +
+  ylab("Density") +
+  stat_function(fun=dnorm, args=list(mean=.5, sd=sqrt(.25/50)),
+                col="dodgerblue") # Overlay a normal curve w/ asymptotic mean/variance
+
+
+```
+
+R also has some built-in functions that can replace the `for` loop. These are not necessarily time-saving, but can clean up your code significantly. The `lapply`, `apply`, `tapply`, `sapply` set of functions are built in to base-R and will apply a function to each element of a vector or matrix, returning the results in another vector. This is what's known in R as *vectorization*. Vectorized code is not guaranteed to be faster, though some vectorized functions are written in C instead of R (like `rowSums()` for taking the sum of rows of matrices). However, it is often immensely cleaner and helps you simplify problems by thinking about the inputs and outputs in terms of whole vectors rather than scalars. 
+
+A `tidyverse` version of the apply functions is the `map` series of functions located in the `purrr` library (loaded by default with `tidyverse`). These take as an input a vector followed by a function and any arguments that should be passed to that function. Re-doing the above loop using `map`. `map` by default returns a list. We'd like to return a vector of a particular type - here `map_dbl` returns a vector of the `double` type (floating point) - which is what we want.
+
+```{r map example}
+set.seed(60615) # Set random seed
+niter <- 100000 # Number of for loop iterations - this can be as big as we need for precisio
+# Pipe %>% makes whatever is piped the first argument in the next function - in this case, 
+# just a vector 1:100000 - it ends up not mattering since the actual values of the function 
+# aren't used in the simulation - it just defines the length and number of iterations
+sample_means = 1:niter %>% map_dbl(function(x) mean(rbinom(n=50, size=1, prob=.5)))
+
+# We get exactly the same value!
+mean(sample_means)
+
+```
