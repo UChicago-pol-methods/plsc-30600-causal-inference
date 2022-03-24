@@ -1,0 +1,39 @@
+---
+title: "PLSC 30600 - Lab 1 - Monte Carlo Simulation"
+author: ""
+date: "4/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Using simulation to understand properties of random variables
+
+A central topic in statistics is determining the properties of different random variables. What are their expectations and variances? Does a sequence
+of random variables converge to some known distribution? A lot of this can be done theoretically, but sometimes it can be challenging
+to derive properties analytically.
+
+A very common tool that is used to obtain numerical results in lieu of analytical ones is *monte carlo* simulation. The principle is simple:
+we can approximate the properties of some random variable $X$ -- its mean, variance, etc... -- by taking a repeated number of $i.i.d.$ draws from
+that random variable and computing them from the empirical distribution. For example, if we wanted to know the expectation of some random variable,
+we can take a large number of independent, repeated draws from that random variable, store those draws, and compute the average. As we let the number
+of draws get arbitrarily large (our only limitation is computing resources and time), this will converge to the true mean.
+
+In practice, you see simulations in statistical methods papers all the time, often to illustrate certain properties of an estimator 
+where the intuition may not be clear just from the analyitical result or to get some sense of properties that are difficult to derive.
+For example, in papers where much of the theory relies on asymptotic approximations, we may use simulations to get a sense of how good the
+approximation is in small samples or to compare the performance of different estimators across fixed sample sizes. 
+
+You also will find simulations useful as a way of checking analytical results -- it's easy for a proof to go wrong or to be unsure
+of some of the steps, so it can help to use a simulation to understand what the correct answer *should* be at least for a particular set of
+parameter values. Simulations can be a great way of generating intuition when analytical results are hard to come by. 
+
+# Common tools of simulation
+
+In conducting a simulation, you will typically rely on two sets of programming tools: random number generator functions and loops.
+
+## Random number generators
+
+R has a suite of functions to allow you to generate (pseudo)-random numbers from particular distributions
