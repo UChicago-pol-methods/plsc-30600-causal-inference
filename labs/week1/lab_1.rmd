@@ -95,5 +95,70 @@ sample_means = 1:niter %>% map_dbl(function(x) mean(rbinom(n=50, size=1, prob=.5
 
 # We get exactly the same value!
 mean(sample_means)
+```
+
+With these two tools, you can generate a simulation for nearly anything you want as long as you know the data-generating process.
+
+# Illustration: Bias of the uncorrected sampling variance estimator
+
+Recall our classic setup for estimating a population mean $\mu$ using $N$ i.i.d. samples $X_i$ with $E[X_i] = \mu$, $Var(X_i) = \sigma^2$ (no assumptions on the *distribution* of $X_i$, just its moments). Our estimator $\hat{\mu} = \bar{X} = \frac{1}{N}\sum_{i=1}^N X_i$ has some known properties. We know $E[\hat{\mu}] = \mu$ and that it is therefore *unbiased*. We know that its true sampling variance is $Var(\hat{\mu}) = \frac{\sigma^2}{N}$ and by extension the standard error is $\frac{\sigma}{\sqrt{N}}$.
+
+However, if we want to construct confidence intervals and do inference, we need $Var(\hat{\mu})$, but we do not know $\sigma^2$. We therefore have to *estimate* using some estimator. One straightforward approach simply plugs in an estimate of $\sigma^2$, $\hat{\sigma^2}$ giving $\widehat{Var(\hat{\mu})} = \frac{\hat{\sigma^2}}{N}$. But how should we construct our estimator $\hat{\sigma^2}$? Well, the variance is defined as $E[(X - E[X])^2]$, the average of the squared deviations from the mean. We can use the sample analogue $\hat{\sigma^2}_{\text{uncorrected}} = \frac{1}{N}\sum_{i=1}^N (X_i - \bar{X})^2$. However, this estimator turns out to be *biased* although it is *consistent*. It turns out that using $N-1$ instead of $N$ addreses this bias $\hat{\sigma^2}_{\text{corrected}} = \frac{1}{N-1}\sum_{i=1}^N (X_i - \bar{X})^2$.
+
+Let's show this via simulation! Start by defining the data-generating process for a fixed value of $N = 30$, $\mu = 0$, $\sigma^2 = 4$, We'll assume $X_i$ is normal, though this isn't strictly necessary.
+
+
+```{r sampling variance bias}
+# Set seed
+set.seed(60615)
+
+# Define the parameters of the DGP
+N = 30
+mu = 0
+sigma = sqrt(4)
+
+# Define a function to compute the unadjusted variance
+var_unadj = function(x){
+  return((1/length(x))*sum((x - mean(x))^2))
+}
+
+# Number of iterations
+niter = 100000
+
+# Run the simulation and get evaluations of the unadjusted variance
+sim_results = 1:niter %>% map_dbl(function(x) var_unadj(rnorm(n=N, mean=mu, sd=sqrt(sigma))))
+
+# Calculate bias
+mean(sim_results) - sigma
 
 ```
+
+Now, we can show that this bias goes away when we use the $N-1$ correction (sometimes called "Bessel's Correction").
+
+```{r sampling variance corrected}
+# Set seed
+set.seed(60615)
+
+# Define the parameters of the DGP
+N = 30
+mu = 0
+sigma = sqrt(4)
+
+# Define a function to compute the unadjusted variance
+var_adj = function(x){
+  return((1/(length(x)-1))*sum((x - mean(x))^2))
+}
+
+# Number of iterations
+niter = 100000
+
+# Run the simulation and get evaluations of the unadjusted variance
+sim_results_adj = 1:niter %>% map_dbl(function(x) var_adj(rnorm(n=N, mean=mu, sd=sqrt(sigma))))
+
+# Calculate bias
+mean(sim_results_adj) - sigma
+
+```
+
+Let's see how these two estimators compare across different values of N. There are lots of ways to do this. You could do a nested for loop -- the outer loop varying N and the inner loop running all `niter` iterations. This will work but the code can look messy and confusing. We'll stick with `map`, but use `map_df` to create a dataframe containing our simulations
+
