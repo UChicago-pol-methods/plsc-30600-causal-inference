@@ -26,11 +26,11 @@ $$
 --
 
 - Logistics:
-  - Lectures M/W - 3:00pm - 4:20pm.
-  - Sections F - 9:30 - 10:20am
+  - Lectures M/W - 3:00pm - 4:20pm; Sections F - 9:30 - 10:20am
   - 3 Problem Sets (~ 2 weeks)
   - Take-home midterm and final (~ 1 week)
-  - My office hours: Tuesdays 1pm-3pm
+  - My office hours: Tuesdays 1pm-3pm (Pick 328)
+  - Arthur's office hours: Fridays 10:30-12:30pm (Pick 312)
 --
 
 - What is this course about?
@@ -147,7 +147,7 @@ class: title-slide
 
 # Random variables
 
-  - A lot of statistical theory revolves around understanding the behavior and properties of .maroon[random variables]
+  - Understanding the behavior and properties of .maroon[random variables] is at the core of statistical theory.
   - A random variable $X$ is a mapping from a **sample space** to the real number line
     - Measure theory gives a more general and precise definition (mapping to a *measureable space*), but we'll only really
     work with real-valued r.v.s
@@ -209,7 +209,7 @@ class: title-slide
   $$E[aX + bY] = aE[X] + bE[Y]$$
 --
 
-  - Note that for a function $g()$, $E[g(X)] \neq g(E[X])$. If $g()$ is convex, by Jensen's inequality $E[g(X)] \ge g(E[X])$
+  - Note that for any generic function $g()$, $E[g(X)] \neq g(E[X])$. If $g()$ is convex, by Jensen's inequality $E[g(X)] \ge g(E[X])$
 --
 
   - For a binary r.v. $X \in \{0, 1\}$, it's helpful to remember the "fundamental bridge" between expectations and probability
@@ -535,12 +535,10 @@ class: title-slide
 # Statistical setup.
 
   - Population of units
-    - Finite population: $1, 2, \dotsc, N$
-    - Superpopulation: $1, 2, \dotsc, \infty$
+    - Finite population or infinite super-population
 --
-  - Sample of $n$ units from the population indexed by $i$
+  - Sample of $N$ units from the population indexed by $i$
 --
-
   - Observed outcome $Y_i$
 --
 
@@ -589,6 +587,7 @@ class: title-slide
     1. No interference -- other units' treatments don't affect $i$'s potential outcomes.
     2. Single version of treatment
     3. $D$ is in principle manipulable -- a "well-defined intervention"
+    4. The means by which treatment is assigned is irrelevant (a version of 2)
 
 ---
 
@@ -622,17 +621,94 @@ Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$ | Observed $Y_i$   |
   
     $$\tau_i = Y_i(1) - Y_i(0)$$
 --
-    - Problem: Can't identify this without extremely strong assumptions!
+    - **Problem**: Can't identify this without extremely strong assumptions!
     - "The Fundamental Problem of Causal Inference"
 --
-  - The average treatment effect (ATE): $\tau$
+  - The **average treatment effect** (ATE): $\tau$
   
     $$\tau = E[Y_i(1) - Y_i(0)]$$
 --
-      - If we consider a finite population of $N$ units, can think of this as
-      
-      $$\tau = \frac{1}{N}\sum_{i=1}^N [Y_i(1) - Y_i(0)]$$
       - What is the *expected* effect of the treatment?
       
   
 ---
+
+# Causal Estimands
+
+  - The **conditional average treatment effect** (CATE): $\tau(x)$
+  
+    $$\tau(x) = E[Y_i(1) - Y_i(0) | X_i = x]$$
+--
+      - The average treatment effect for the sub-population with a particular set of covariate values $X_i = x$
+ 
+--
+
+  - The **average treatment effect on the treated** (ATT): $\tau_{\text{ATT}}$
+  
+    $$\tau_{\text{ATT}} = E[Y_i(1) - Y_i(0) | D_i = 1]$$
+--
+      - The average treatment effect among those units that were *assigned* treatment.
+      
+      - Why do we care about this?
+        - Sometimes more policy-relevant.
+        - Often easier to identify in selection-on-observables designs.
+      
+  
+---
+
+# Causal Estimands
+
+  - The **risk ratio** (RR) for binary outcomes:
+  
+  $$RR = \frac{Pr(Y_i(1) = 1)}{Pr(Y_i(0) = 1)}$$
+--
+      - Political science and social sciences rarely use these.
+      - Medicine *loves* risk ratios (e.g. Covid vaccine effectiveness = 1 - RR)
+ 
+---
+
+# Finite Population Estimands
+
+  - For these estimands we have two sources of uncertainty
+    - Sampling from a population.
+    - Random assignment of treatment (unobserved P.O.s)
+--
+  - What if we're just interested in doing inference on the treatment effect in the 
+  sample, or there is no population from which we sample from?
+    - We can define analogues of the ATE for the sample -- the *sample average treatment effect*
+
+    $$\tau_{\text{SATE}} = \frac{1}{N} \sum_{i=1}^N Y_i(1) - Y_i(0)$$
+---
+
+# Finite Population Estimands
+
+  - There's *still* uncertainty -- we don't observe all of the potential outcomes. But now we
+  don't have to justify generalizing to the population.
+    - Under random sampling, the SATE is unbiased for the (population) ATE or PATE.
+    - Large literature on when and how we can generalize absent random sampling ("transportability")
+--
+  - Inference justified on the basis of *randomization* of the treatment.
+    - A lot of the same tools for inference in classical super-population sampling transfer over nicely.
+      
+---
+
+# Causal vs. Associational Estimands
+
+.center[<img src="assets/association_causation.png" alt ="Illustrating Estimation", height="500px">]
+
+---
+
+
+# Conclusion
+
+- Causal effects are contrasts in .maroon[counterfactuals]
+- The potential outcomes framework gives us a tool for defining statistical *estimands* 
+in terms of functions of individual effects of treatment.
+  - The potential outcome $Y_i(d)$ denotes the outcome $Y_i$ we would observe for unit
+  $i$ if they were assigned treatment $d$
+  - Implicitly making a consistency/SUTVA assumption to link *observed* to *counterfactual*
+- .maroon[Fundamental problem of causal inference]: We're going to need more assumptions -- don't get 
+to directly observe individual treatment effects.
+- Next week: What additional assumptions do we need to **identify** causal effects from the observed
+data. Why randomized experiments satisfy those assumptions.
+
