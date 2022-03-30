@@ -1,0 +1,179 @@
+---
+title: "PLSC 30600: Problem Set 1"
+author: [YOUR NAME]
+output: pdf_document
+date: "March 30, 2022"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Useful packages
+library(tidyverse)
+library(haven)
+
+```
+
+\begin{quote}\itshape
+This problem set is due at \textbf{11:59 pm on Thursday, April 12th}.
+
+Please upload your solutions as a .pdf file saved as ``Yourlastname\_Yourfirstinitial\_pset1.pdf''). In addition, an electronic copy of your .Rmd file (saved as ``Yourlastname\_Yourfirstinitial\_pset1.Rmd'') must be submitted to the course website at the same time. We should be able to run your code without error messages. In addition to your solutions, please submit an annotated version of this `.rmd` file saved as ``Yourlastname\_Yourfirstinitial\_pset1\_feedback.rmd'', noting the problems where you needed to consult the solutions and why along with any remaining questions or concerns about the material. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted.
+\end{quote}
+
+# Problem 1
+
+In this problem we will examine what information the data might provide us regarding the magnitude or direction of a treatment effect if we are only willing to make a consistency or SUTVA assumption with respect to the potential outcomes and a positivity/overlap assumption on the probability of treatment.
+
+Consider our standard causal inference setup with a binary treatment and a binary outcome. $Y_i$ denotes the observed outcome for unit $i$, $Y_i \in \{0, 1\}$. $D_i$ denotes the observed treatment for unit $i$. $Y_i(d)$ denotes the potential outcome we would observe if $i$ were assigned treatment value $d$. By consistency, we have: $Y_i(d) = Y_i \text{ if } D_i = d$. By positivity, we have $0 < Pr(D_i = 1) < 1$. In other words, treatment is not deterministic and each unit could have received either treatment or control.
+
+Our estimand is the average treatment effect $\tau = E[Y_i(1) - Y_i(0)]$. We will focus here on causal identification and work with the population expectations $E[Y_i(d)]$ and $E[Y_i]$ and conditional expectations $E[Y_i(d) | D_i]$ and $E[Y_i | D_i]$, setting aside the question of estimation.
+
+## Part A
+
+Write an expression for the average treatment effect in terms of the difference in observed means between treatment and control $E[Y_i|D_i = 1] - E[Y_i|D_i = 0]$ and a bias term.
+
+## Part B
+
+Which components of the bias term can be observed from the data and which ones cannot? Can the average treatment effect be point-identified from the data alone? Explain why.
+
+## Part C
+
+What is the smallest possible value of the bias term? What is the largest possible value of the bias term? (remember that $Y_i$ is a binary value that can either be $0$ or $1$).
+
+## Part D
+
+Using your answer from part C, write the upper and lower bounds of the average treatment effect in terms of the observable conditional expectations $E[Y_i | D_i = 1]$, $E[Y_i | D_i = 0]$. Is there any value of the observed difference-in-means for which the bounds only contain positive or only contain negative values? What does this tell us about whether we can learn about the direction of a treatment effect from the observed data alone?
+
+# Problem 2
+
+In "Monitoring Corruption: Evidence from a Field Experiment in Indonesia," [Olken (2007)](https://www.povertyactionlab.org/sites/default/files/research-paper/27_Olken_Monitoring_Corruption.pdf) examines whether increased monitoring had the effect of reducing corruption in Indonesian village road projects. At the time of the study, each of the villages was considering building a road. Olken randomly selected some of the villages to be told, prior to the beginning of construction, that their construction project will be audited by the central government. Olken then measured, for each village's road, the actual amount spent using a combination of engineering surveys, market surveys to determine material price and worker surveys to determine wages paid. He then compared this to the amount each village reported that it spent to measure the extent to which funds were diverted to non-construction purposes (corruption). You will analyze some of the data from this experiment here.
+
+The relevant variables you will need in the dataset are:
+
+- `desaid` - Village identifier
+- `kecid` - Sub-district identifier
+- `audit` - Treatment: Whether a village was assigned to receive an audit.
+- `lndiffeall4mainancil` - Outcome: Percent missing in expenditures. Measured as the difference between the log of the reported amount and the log of the actual amount spent on construction (main road + ancillary projects). Note that this can be negative occasionally when the amount reported happens to be *below* what Olken's estimates suggest was actually spent.
+
+Below is the code to load the dataset into R. You will need to subset the data down to those with non-missing outcome data.
+
+```{r, echo=T, message=F}
+### Load in the Olken (2007) data
+roads <- read_dta("jperoaddata.dta")
+
+```
+
+## Part A
+
+Assume that Olken randomly assigned individual villages to treatment or control. Using a simple difference-in-means estimator, generate a point estimate for the average treatment effect of an audit on the percent missing in expenditures. Construct a 95\% asymptotic confidence interval using the Neyman variance estimator. Generate a p-value for a hypothesis test of the null of no average treatment effect $H_0: \tau = 0$ using the Neyman variance and assuming asymptotic normality of the sampling distribution.
+
+## Part B
+
+Still assuming that the randomization scheme assigned treatment to villages individually, conduct a permutation test for the sharp null of no individual treatment effect. Use the absolute difference-in-means as your test statistic $T = \bigg| \frac{1}{N_t} \sum_{i=1}^N D_i Y_i - \frac{1}{N_c} (1-D_i)Y_i \bigg|$ where $N_t$ and $N_c$ are the number of treated and control units Report the p-value. Do you reject the null at $\alpha = .01$? At $\alpha = .05$?
+
+## Part C
+
+Compare your point estimate, standard error and p-value from Part A to the estimates presented in Table 4 of Olken (2007) (under the "No Fixed Effects" column). How do they differ? Read the *Experimental Design* section of Olken (2007) and explain the *actual* process by which the audit treatment was assigned and how it differed from the process that you assumed in Parts A and B? Why might this explain the differences you observe?
+
+## Part D
+
+Conduct a permutation test for the sharp null of no individual treatment, but now accurately replicating the assignment scheme described by Olken (2007). Use the same test statistic. Report the p-value. Do you reject the null at $\alpha = .01$? At $\alpha = .05$? Compare the p-value to what you obtained in Part B and discuss why they do or do not differ?
+
+## Part E
+
+Aggregate the data to the level of the sub-district. Estimate the average treatment effect of being assigned to an audit on the average percent missing in expenditures for projects in the sub-district using the simple difference-in-means estimator. Construct a 95\% asymptotic confidence interval using the Neyman variance estimator. Generate a p-value for a hypothesis test of the null of no average treatment effect $H_0: \tau = 0$ using the Neyman variance and assuming asymptotic normality of the sampling distribution.
+
+Compare your results to your estimates from Part A and to the results reported in Olken (2007) Table 4 and discuss.
+
+# Problem 3
+
+In this problem, you will use simulation to learn about the sampling variance of the difference-in-means estimator for the ATE under different randomization schemes. 
+
+Assume the following data-generating process:
+
+We observe sample of $N=100$ observations. Each unit is assigned treatment $D_i = 1$ with some probability $Pr(D_i = 1)$. We'll assume that the outcome is generated by $Y_i = \tau D_i + \epsilon_i$ where $\epsilon_i \sim \text{Normal}(0, 1)$. We will assume a constant, additive treatment effect of $\tau = 2$ for the sake of the simulation.
+
+## Part A
+
+Suppose treatment was assigned via independent Bernoulli trials with a constant probability of treatment $Pr(D_i = 1) = .5$ and $D_i {\perp \! \! \! \perp} D_j$ for all units $i \neq j$. Using a monte carlo simulation and assuming the data-generating process above, find the variance of the sampling distribution of the simple difference-in-means estimator (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations).
+
+## Part B
+
+Now consider a completely randomized experiment where $N_t = 50$ units receive treatment and $N_c = 50$ units receive control. In this setting, the marginal probability of treatment is $\mathbb{P}(D_i = 1) = .5$ but $D_i$ is not independent of $D_j$. Using a monte carlo simulation for this assignment process, find the variance of the sampling distribution of the simple difference-in-means estimator (again, use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations). Compare your variance to the variance under the data-generating process from Part A and discuss why they may differ.
+
+## Part C
+
+Sometimes when designing an experiment, it is impossible to completely randomize over the entire sample of respondents since respondents arrive in a sequence. For example, experimenters fielding online surveys do not observe the entire sample and sometimes have to randomly assign treatments in a "just-in-time" manner.
+
+Efron (1971) suggests an alternative approach to independent bernoulli randomization that biases the coin depending on how many units have previously been assigned to the treatment group versus the control group.
+
+Consider the randomization scheme where treatment is assigned sequentially for units $1$ through $100$ according to their order. In other words, treatment for unit 1 is randomly assigned. Then treatment for unit 2 is randomly assigned depending on the value of the treatment for unit 1, and so on... Let $\tilde{N_{t,i}}$ denote the number units treated prior to unit $i$, $\tilde{N_{c,i}}$ the number of units under control prior to unit $i$ and $\tilde{Z}_i = \tilde{N_{t,i}} - \tilde{N_{c,i}}$ or the difference in the number of treated and control groups. By definition, $\tilde{Z}_1 = 0$ since there are no treated or control units when the first unit is assigned.
+
+Define the probability of treatment $Pr(D_i = 1)$ for the $i$th unit as
+
+$$
+Pr(D_i = 1) =
+\begin{cases}
+\pi &\text{ if } \tilde{Z}_i < 0\\
+0.5 &\text{ if } \tilde{Z}_i = 0\\
+(1- \pi) &\text{ if } \tilde{Z}_i > 0\\
+\end{cases}
+$$
+
+Intuitively, the assignment mechanism biases the probability of receiving treatment upward if there are fewer treated than control and biases it downward if there are more treated than control at the time of assignment. 
+
+Let $\pi = .9$. Using a monte carlo simulation for this assignment scheme, find the variance of the sampling distribution of the simple difference-in-means estimator (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations). Compare your variance to your result in Part A and your result in Part B. Discuss any differences you observe.
+
+## Part D
+
+Using your simulation results from Part C, is the difference-in-means estimator using this assignment scheme unbiased for the average treatment effect $\tau = 2$?
+
+## Part E
+
+Intuitively, what will happen to the sampling variance if $\pi$ is set to be less than $.5$? (You don't need to use a simulation to answer this, but you are welcome to use one if it would help).
+
+# Problem 4
+
+Do international election monitors reduce the incidence of electoral fraud? [Hyde (2007)](https://www.aeaweb.org/articles?id=10.1257/000282803321946921) studies the 2003 presidential election in Armenia, an election that took place during a period where the incumbent ruling party headed by President Robert Kocharian had consolidated power and often behaved in ways that were considered undemocratic.
+
+The full citation for this paper is
+
+> Hyde, Susan D. "The observer effect in international politics: Evidence from a natural experiment." *World Politics* 60.1 (2007): 37-63.
+
+At the time of the election, OSCE/ODIHR election monitors reported widespread electoral irregularities that favored the incumbent party such as ballot-box stuffing (pp. 47). However, we do not necessarily know whether these irregularities would have been worse in the absence of monitors. Notably, not all polling stations were monitored -- the OSCE/ODIHR mission could only send observers to some of the polling stations in the country. Since in the context of this election only the incumbent party would have the capacity to carry out significant election fraud, Hyde examines whether the presence of election observers from the OSCE/ODIHR mission at polling stations in Armenia reduced the incumbent party's vote share at that polling station.
+
+For the purposes of this problem, you will be using the `armenia2003.dta` dataset
+
+The R code below will read in this data (which is stored in the STATA .dta format)
+```{r, echo=T, message=F}
+### Hyde (2007) Armenia dataset
+armenia <- read_dta("armenia2003.dta")
+
+
+```
+
+This dataset consists of 1764 observations polling-station-level election results from the 2003 Armenian election made available by the Armenian Central Election Commission. The election took place over two rounds with an initial round having a large number of candidates and a second, run-off election, between Kocharian and the second-place vote-getter, Karen Demirchyan. We will focus on monitoring and voting in the first round.  The specific columns you will need are:
+
+- `kocharian` - Round 1 vote share for the incumbent (Kocharian)
+- `mon_voting` - Whether the polling station was monitored in round 1 of the election
+- `turnout` - Proportion of registered voters who voted in Round 1
+- `totalvoters` - Total number of registered voters recorded for the polling station
+- `total` - Total number of votes cast in Round 1
+- `urban` - Indicator for whether the polling place was in an urban area (0 = rural, 1 = urban)
+- `nearNagorno` - Indicator for whether the polling place is near the Nagorno-Karabakh region (0 = no, 1 = yes)
+
+## Part A
+
+Hyde describes the study as a "natural experiment," stating: 
+
+> "I learned from conversations with staff and participants in the OSCE observation mission to Armenia that the method used to assign observers to polling stations was functionally equivalent to random assignment. This permits the use of natural experimental design. Although the OSCE/ODIHR mission did not assign observers using a random numbers table or its equivalent, the method would have been highly unlikely to produce a list of assigned polling stations that were systematically different from the polling stations that observers were not assigned to visit. Each team's assigned list was selected arbitrarily from a complete list of polling stations." (p. 48)
+
+What makes this study a "natural experiment" and not a true experiment? What assumption must the study defend in order to identify the causal effect of election monitoring that would be guaranteed to hold in a randomized experiment?
+
+## Part B
+
+For the purposes of this part, assume election monitors were assigned as the author describes - in a manner "functionally equivalent to random assignment." Assume that this is true. Using the difference-in-means estimator, estimate the average treatment effect of election monitoring on incumbent vote share in round 1. Provide a 95\% asymptotic confidence interval using the Neyman variance estimator and interpret your results. Can we reject the null of no average treatment effect at the $\alpha = 0.05$ level? 
+
+## Part C
+
+Evaluate the author's identification assumptions by examining whether the treatment is balanced on three pre-treatment covariates: the total number of registered voters, whether a polling place was in an urban area, and whether the polling place was located near the Nagorno-Karabakh region (Kocharian's home region and a disputed territory between Armenia and Azerbaijan). Discuss your results. Are they consistent with the author's description of "as-if random" assignment? Do you believe that your estimator from Part B is unbiased for the true average treatment effect?
