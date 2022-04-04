@@ -1,0 +1,568 @@
+---
+title: "Week 2: Randomized Experiments"
+subtitle: "PLSC 30600 - Causal Inference"
+# author: "Anton Strezhnev"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [default, uchicago_pol_meth.css]
+    nature:
+      highlightLines: true
+      ratio: '16:9'
+  
+---
+class: title-slide
+
+# Identifying causal effects
+$$
+  \require{cancel}
+$$
+
+---
+
+# Last week
+
+  - We defined fundamental causal quantities in terms of *potential outcomes*
+    - The individual treatment effect $\tau_i = Y_i(1) - Y_i(0)$
+  - Why can we not identify individual treatment effects (w/o strong assumptions)?
+    - Fundamental problem of causal inference!
+    - Observed data only reveal $Y_i(1)$ or $Y_i(0)$ (under consistency)
+
+---
+
+# This week
+
+  - What assumptions do we need to identify treatment effects from the data?
+    - Consistency + positivity aren't enough!
+  - We need some statement about how the treatment was assigned.
+    - Ignorability/exogeneity: $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i$
+  - Why does a randomized experiment get us this assumption by design?
+
+---
+
+# Identifying the ATT
+
+  - Suppose we want to identify the Average Treatment Effect on the Treated (ATT)
+  
+  $$\tau_{\text{ATT}} = E[Y_i(1) - Y_i(0) | D_i = 1]$$
+
+  - Let's see what our consistency/SUTVA assumption gets us!
+--
+  
+  - First, let's use linearity:
+  
+  $$\tau_{\text{ATT}} = E[Y_i(1) | D_i = 1] -  E[Y_i(0) | D_i = 1]$$
+--
+
+  - Next, consistency
+  
+  $$\tau_{\text{ATT}} = E[Y_i | D_i = 1] -  E[Y_i(0) | D_i = 1]$$
+
+---
+
+# Identifying the ATT
+
+  - Still not enough though. We have an *unobserved* term $E[Y_i(0) | D_i = 1]$. Why can't we observe this directly?
+  
+    $$\tau_{\text{ATT}} = E[Y_i | D_i = 1] -  E[Y_i(0) | D_i = 1]$$
+--
+  
+  - Let's see what the difference would be between the ATT and the simple difference-in-means $E[Y_i | D_i = 1] - E[Y_i | D_i = 0]$. Add and subtract $E[Y_i | D_i = 0]$
+  
+  $$\tau_{\text{ATT}} = E[Y_i | D_i = 1] -  E[Y_i(0) | D_i = 1] - E[Y_i | D_i = 0] + E[Y_i | D_i = 0]$$
+--
+  - Rearranging terms
+  
+  $$\tau_{\text{ATT}} = \bigg(E[Y_i | D_i = 1] -  E[Y_i | D_i = 0]\bigg) - \bigg(E[Y_i(0) | D_i = 1] -  E[Y_i | D_i = 0]\bigg)$$
+
+---
+
+# Identifying the ATT
+
+  - Now we have an expression for the ATT in terms of the difference-in-means and a bias term
+  
+      $$\tau_{\text{ATT}} = \underbrace{\bigg(E[Y_i | D_i = 1] -  E[Y_i | D_i = 0]\bigg)}_{\text{Difference-in-means}} - \underbrace{\bigg(E[Y_i(0) | D_i = 1] -  E[Y_i(0) | D_i = 0]\bigg)}_{\text{Selection-into-treatment bias}}$$
+--
+  
+  - What does this bias term represent? How can we interpret it?
+--
+
+    - How much higher are the potential outcomes under control for units that receive treatment vs. those that receive control.
+    - Sometimes called a **selection-into-treatment** problem -- units that choose treatment may have higher or lower potential outcomes than those that choose control.
+---
+
+# Identifying the ATC
+
+  - We can use the same exact approach for the ATC and we get a similar expression with a slightly different selection-into-treatment bias term \( $Y_i(1)$ instead of $Y_i(0)$ \)
+  
+      $$\tau_{\text{ATC}} = \underbrace{\bigg(E[Y_i | D_i = 1] -  E[Y_i | D_i = 0]\bigg)}_{\text{Difference-in-means}} - \underbrace{\bigg(E[Y_i(1) | D_i = 1] -  E[Y_i(1) | D_i = 0]\bigg)}_{\text{Selection-into-treatment bias}}$$
+      
+--
+  - By law of total expectation, we could get the bias for the ATE (this is on your problem set!)
+  
+  $$\underbrace{E[Y_i(1) - Y_i(0)]}_{\text{ATE}} = \underbrace{E[Y_i(1) - Y_i(0)|D_i = 1}_{\text{ATT}}]Pr(D_i = 1) + \underbrace{E[Y_i(1) - Y_i(0)|D_i = 0]}_{\text{ATC}}Pr(D_i = 0)$$
+  
+---
+
+# Selection-into-treatment bias
+
+  - Can use theory to "sign the bias" of the difference-in-means.
+    - Suppose $Y_i$ was an indicator of whether someone voted in an election and $D_i$ was an indicator for whether they received a political mailer.
+    - Consider a world where the mailer was sent out non-randomly to everyone who had signed up for a politician's mailing list. 
+    - If we took the difference in turnout rates between voters who received the mailer and voters who did not receive the mailer, would we be over-estimating or under-estimating the effect of treatment? Why?
+    
+
+---
+
+# Ignorability/Unconfoundedness
+
+  - What assumption can we make for the difference-in-means to identify the ATE?
+--
+
+  - The selection-into-treatment bias for both the ATT and the ATC is $0$
+  
+  $$E[Y_i(0) | D_i = 1] = E[Y_i(0) | D_i = 0]$$
+  $$E[Y_i(1) | D_i = 1] = E[Y_i(1) | D_i = 0]$$
+--
+
+  - This will be true under an assumption that treatment is assigned **independent** of the potential outcomes.
+ 
+ $$\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i$$
+
+  - Common names for this assumption:  **exogeneity**, **unconfoundedness**, **ignorability**
+    - In simple terms: Treatment is not systematically more/less likely to be assigned to units that have higher/lower potential outcomes.
+
+---
+
+# Ignorability/Unconfoundedness
+
+  - What does ignorability give us?
+--
+  
+  - By independence
+  
+  $$E[Y_i(1) | D_i = 1] = E[Y_i(1)]$$
+  $$E[Y_i(0) | D_i = 0] = E[Y_i(0)]$$
+    - Technically we only need the above ("mean ignorability") and not full ignorability but there are few cases where we can justify former but not latter.
+--
+  - Combined with consistency, we get: 
+  
+  $$E[Y_i | D_i = 1] = E[Y_i(1)]$$
+  
+  $$E[Y_i | D_i = 0] = E[Y_i(0)]$$
+
+--
+
+  - The observed data identify the ATE!
+  
+---
+
+# Ignorability/Unconfoundedness
+
+  - To summarize:
+--
+  
+  $$E[Y_i | D_i = 1] - E[Y_i | D_i = 0]$$
+  
+  $$E[Y_i(1) | D_i = 1] - E[Y_i(0) | D_i = 0]$$
+  $$E[Y_i(1)] - E[Y_i(0)]$$
+  
+  $$E[Y_i(1) - Y_i(0)] = \tau$$
+  
+--
+  
+---
+
+# Ignorability/Unconfoundedness
+
+.center[<img src="assets/association_causation.png" alt ="association_confounding", height="500px">]
+
+---
+class: title-slide
+
+# Experiments
+
+---
+
+# Randomized experiments
+
+  - What sort of research design justifies ignorability?
+    - One design is a randomized experiment!
+--
+  - An .maroon[experiment] is any study where a researcher knows and controls the 
+  treatment assignment probability $Pr(D_i = 1)$
+--
+
+  - A .maroon[randomized experiment] is an experiment that satisfies:
+    - Positivity: $0 < Pr(D_i = 1) < 1$ for all units
+    - Ignorability: $Pr(D_i = 1| \mathbf{Y}(1), \mathbf{Y}(0)) = Pr(D_i = 1)$ 
+      - Another implication of $\mathbf{Y}(1), \mathbf{Y}(0) {\perp \! \! \! \perp} D_i$
+      - Treatment assignment probabilities do not depend on the potential outcomes.
+
+---
+
+# Natural experiments
+
+  - The term "natural experiment" gets used a lot in the social sciences.
+    - Often used to lend *additional* credibility to a particular observational empirical design.
+--
+  - What constitutes a .maroon[natural experiment]? Titiunik (2020) argues for three factors
+    - Probability of treatment assignment is **not** directly controlled by the researcher.
+    - Probability of treatment assignment is **unknown** to the researcher.
+    - Probability of treatment assignment is **probabilistic** due to some external event that is outside of subjects' control.
+--
+  - The credibility of a natural experiment depends on how much we believe that "external event" is unrelated to subjects' potential outcomes.
+    - Essentially, another way of trying to justify $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i$
+    
+---
+
+# Types of experiments
+
+  - Lots of ways in which we could design a randomized experiment where ignorability holds:
+--
+
+  - Let $N_t$ be the number of treated units, $N_c$ number of controls
+  - .maroon[Bernoulli randomization]:
+    - Independent coin flips for each $D_i$. $Pr(D_i = 1) = p$
+    - $D_i {\perp \! \! \! \perp} D_j$ for all $i$, $j$.
+    - $N_t$, $N_c$ are random variables
+--
+  - .maroon[Complete randomization]
+    - Fix $N_t$ and $N_c$ in advance. Randomly select $N_t$ units to be treated.
+    - Each unit has an equal probability to be treated.
+    - Each assignment with $N_t$ treated units is equally likely to occur
+    - $D_i$ is independent of potential outcomes, but treatment assignment is slightly dependent across units.
+    
+---
+
+# Types of experiments
+
+  - .maroon[Stratified randomization]
+    - Using covariates $X_i$, form $J$ total blocks or strata of units with similar or identical covariate values.
+    - Completely randomize *within* each of the $J$ blocks
+    - If treatment probabilities are identical within each block, can analyze as though completely random.
+--
+  - .maroon[Cluster randomization]
+    - Each unit $i$ belongs to some larger cluster. $C_i = \{1, 2, \dotsc, C\}$, $C < N$.
+    - Treatment is assigned at the cluster level -- randomly Select some number of clusters to be treated, remainder control.
+    - If units share cluster membership, they get the same treatment \( $C_i = C_j \leadsto D_i = D_j$ \)
+---
+
+# Complete randomization
+
+  - How do we do estimation and inference under complete randomization?
+--
+  
+  - We'll start with the finite-sample setting and illustrate the Neyman (1923; 1990) approach to inference for the SATE.
+  - Define our quantity of interest, the sample average treatment effect
+  
+  $$\tau_{\text{SATE}} = \frac{1}{N}\sum_{i=1}^N Y_i(1) - Y_i(0)$$
+  - Our estimator is the sample difference-in-means.
+  
+  $$\hat{\tau} = \frac{1}{N_t} \sum_{i=1}^N Y_i D_i - \frac{1}{N_c} \sum_{i=1}^N Y_i (1 - D_i)$$ 
+  
+---
+  
+# Finite sample inference
+
+  - Why is $\hat{\tau}$ a random variable even when we don't assume sampling from a population?
+--
+
+    - Because the treatment is randomized!
+    - Different randomizations would lead to different realizations of $\hat{\tau}$.
+--
+  - Consider a study with $N_t = 3$, $N_c = 3$ and suppose we could see the true "table of science"
+  - Under one realization of the treatment $\mathbf{D}$, we have:
+  
+Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$   | Observed $Y_i$   |
+:---------:|:-----------------:|:--------:|:----------:|:----------------:|
+ $1$       |  $1$              |  $5$     |   $0$      |    $5$           |
+ $2$       |  $0$              |  $2$     |  $-3$      |    $-3$          |
+ $3$       |  $1$              |  $9$     |   $4$      |    $9$           |
+ $4$       |  $0$              |  $4$     |   $-1$     |    $-1$          |
+ $5$       |  $0$              |  $1$     |   $-4$     |    $-4$          |
+ $6$       |  $1$              |  $2$     |   $-3$     |    $2$           |
+ 
+--
+
+  - For this randomization, our realization of $\hat{\tau}$ (our estimate) would be:
+  
+  $$\frac{1}{3}(5 + 9 + 2) - \frac{1}{3}(-3 - 1 - 4) = 8$$
+
+---
+
+  
+# Finite sample inference
+
+  - How about another, equally likely realization?
+  
+Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$ | Observed $Y_i$   |
+:---------:|:-----------------:|:--------:|:--------:|:----------------:|
+ $1$       |  $1$              |  $5$     |   $0$    |    $5$           |
+ $2$       |  $1$              |  $2$     |  $-3$    |    $2$           |
+ $3$       |  $0$              |  $9$     |   $4$    |    $4$           |
+ $4$       |  $0$              |  $4$     |   $-1$   |    $-1$          |
+ $5$       |  $0$              |  $1$     |   $-4$   |    $-4$          |
+ $6$       |  $1$              |  $2$     |   $-3$   |    $2$           |
+ 
+--
+
+  - For this randomization, our realization of $\hat{\tau}$ would be:
+  
+  $$\frac{1}{3}(5  + 2 + 2) - \frac{1}{3}(4 - 1 - 4) = \frac{10}{3}$$
+
+---
+
+# Finite sample inference
+
+  - Overall all possible randomizations, what is the distribution?
+--
+  
+  - We can run a quick simulation and find out
+  
+```{r}
+### Define the data frame
+data <- data.frame(Y_1 = c(5,2,9,4,1,2), 
+                   Y_0 = c(0, -3, 4, -1, -4, -3))
+
+## Simulate the sampling distribution
+nIter = 10000
+sate_est = rep(NA, nIter)
+set.seed(60637)
+
+for(i in 1:nIter){
+  data$D = sample(rep(c(0,1), each=3))
+  data$Y = data$D*data$Y_1 + (1-data$D)*data$Y_0
+  sate_est[i] = mean(data$Y[data$D==1]) - mean(data$Y[data$D==0])
+}
+```
+
+---
+
+# Finite sample inference
+
+```{r, echo=F, fig.width=10, fig.height=8, fig.align='center'}
+hist(sate_est, xlab="Estimated SATE", main="")
+abline(v=5, lty=2, col="red")
+
+```
+
+---
+
+# Finite sample inference
+
+  - Of course, in real data, we only get one estimate. Need to rely on theory to understand the *distribution* that 
+  estimate came from in order to do inference
+--
+
+    - Is $\hat{\tau}|\mathbb{Y}(1), \mathbb{Y}(0)$ unbiased for the SATE?
+    - What is the sampling variance $Var(\hat{\tau})$ under a finite sample (fixed $\mathbb{Y}(1)$, $\mathbb{Y}(0)$)?
+    - What should our estimator of the sampling variance $\widehat{Var(\hat{\tau})}$ be?
+  
+---
+
+# Unbiasedness
+
+  - We can show that conditional on the potential outcomes $\hat{\tau}$ is unbiased for the SATE. First, by linearity of expectations
+
+  $$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N_t} \sum_{i=1}^N E\bigg[Y_i D_i \bigg| \mathbb{Y}(1), \mathbb{Y}(0)\bigg] - \frac{1}{N_c} \sum_{i=1}^N E\bigg[Y_i (1 - D_i) \bigg| \mathbb{Y}(1), \mathbb{Y}(0) \bigg]$$ 
+
+--
+  - By consistency $Y_iD_i = Y_i(1)D_i$ and $Y_i(1-D_i) = Y_i(0)(1-D_i)$
+  
+    $$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N_t} \sum_{i=1}^N E\bigg[Y_i(1) D_i \bigg| \mathbb{Y}(1), \mathbb{Y}(0)\bigg] - \frac{1}{N_c} \sum_{i=1}^N E\bigg[Y_i(0) (1 - D_i) \bigg| \mathbb{Y}(1), \mathbb{Y}(0)\bigg]$$ 
+
+--
+
+  - Conditional on the potential outcomes, $Y_i(1)$ and $Y_i(0)$ are constants
+  
+    $$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N_t} \sum_{i=1}^N Y_i(1) E\bigg[ D_i\bigg| \mathbb{Y}(1), \mathbb{Y}(0)\bigg] - \frac{1}{N_c}  \sum_{i=1}^N Y_i(0) E\bigg[(1 - D_i) \bigg| \mathbb{Y}(1), \mathbb{Y}(0)\bigg]$$ 
+  
+---
+
+
+# Unbiasedness
+
+  - $D_i$ has a known distribution under complete randomization and its expectation is $Pr(D_i = 1)$, which is just $N_t/N$
+
+  $$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N_t} \sum_{i=1}^N Y_i(1) \frac{N_t}{N} - \frac{1}{N_c} \sum_{i=1}^N Y_i(0)  \frac{N_c}{N}$$ 
+--
+
+  - Pulling out the constants
+  
+$$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N} \sum_{i=1}^N Y_i(1)  - \frac{1}{N} \sum_{i=1}^N Y_i(0)$$ 
+--
+
+  - Combining the sums, we have the SATE. Therefore the difference-in-means under complete randomization is unbiased for the SATE!
+
+$$E[\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)] = \frac{1}{N} \sum_{i=1}^N  Y_i(1)  -  Y_i(0)$$ 
+
+---
+
+# Sampling variance
+
+- What's the variance of $\hat{\tau}$ going to be (conditional on the sample)? Slightly tricky since $D_i$ is not independent of $D_j$. 
+
+--
+
+ $$Var(\hat{\tau}| \mathbb{Y}(1), \mathbb{Y}(0)) = \frac{S^2_t}{N_t} + \frac{S^2_c}{N_c} - \frac{S^2_{\tau_i}}{N}$$
+ where 
+ 
+ $$S_t^2 = \frac{1}{N-1} \sum_{i=1}^N \bigg(Y_i(1) - \bar{Y(1)}\bigg)^2$$
+  $$S_c^2 = \frac{1}{N-1} \sum_{i=1}^N \bigg(Y_i(0) - \bar{Y(0)}\bigg)^2$$
+  
+  and 
+ 
+  $$S_{\tau_i}^2 = \frac{1}{N-1} \sum_{i=1}^N \bigg((Y_i(1) - Y_i(0))- (\bar{Y(1)} - \bar{Y(0)}) \bigg)^2$$
+
+  - For the full proof, see Abadie and Imbens (2015) Chapter 6, Appendix A
+ 
+ 
+---
+ 
+ 
+ # Sampling variance
+
+- Can we estimate the sampling variance? Well $S^2_t$ and $S^2_c$ can be estimated from their sample analogues (just the sample variances within treated/control groups)
+
+ $$s_t^2 = \frac{1}{N_t-1} \sum_{i:D_i = 1} \bigg(Y_i(1) - \bar{Y_t^{\text{obs}}}\bigg)^2$$
+  $$s_c^2 = \frac{1}{N_c-1} \sum_{i:D_i = 0} \bigg(Y_i(0) - \bar{Y_c^{\text{obs}}}\bigg)^2$$
+
+--
+
+- However the $S^2_{\tau_i}$ term can't be estimated directly from the sample. Why?
+
+--
+  - The fundamental problem of causal inference! Can't observe individual treatment effects.
+
+---
+
+ # Neyman variance
+ 
+ - Neyman suggested just ignoring that third term and using our familiar estimator
+ 
+$$\widehat{\mathbb{V}}_{\text{Neyman}} = \frac{s_t^2}{N_t} + \frac{s_c^2}{N_c}$$
+--
+ 
+ - What are its properties?
+  - We know it's **conservative** for the true variance since $S_{\tau_i}^2 \ge 0$.
+  - If treatment effects are constant, it's unbiased!
+  - Confidence intervals using the Neyman standard error $\sqrt{\widehat{\mathbb{V}}_{\text{Neyman}}}$ will be no smaller than they should be.
+  
+---
+  
+ # Population inference
+ 
+ - Suppose we don't condition on $\mathbb{Y}(1)$, $\mathbb{Y}(0)$ and are interested in the PATE.
+  - The difference-in-means is still unbiased (under random sampling)!
+ - What happens to the true variance? 
+  - The $S_{\tau_i}^2$ term drops out of the variance of $\hat{\tau}$
+  - Intuition: With random sampling from a target population, can think of treated group and control group as two separate $N_t$ and $N_c$ size samples from the population $Y_i(1)$ and $Y_i(0)$ respectively.
+  - Neyman variance is unbiased for the sampling variance of the ATE in this setting (that third term goes away)
+
+---
+
+ # Illustration: Gerber, Green and Larimer (2008)
+ 
+
+.center[<img src="assets/social_pressure.png" alt ="gerber_green", height="500px">]
+
+
+---
+
+ # Illustration: Gerber, Green and Larimer (2008)
+ 
+ - Gerber, Green and Larimer (2008) want to know what causes people to vote.
+    - What sorts of encouragements will get people to turn out more or less?
+--
+ - Five treatment conditions in a randomized GOTV mailer experiment:
+    - No mailer (0)
+    - "Researchers will be studying your turnout" mailer (Hawthorne) (1)
+    - "Voting is a civic duty" mailer (Civic Duty) (2)
+    - "Your and your neighbors' voting history" mailer (Neighbors) (3)
+    - "Your turnout history" mailer (Self) (4)
+--
+ - Gerber, Green and Larimer first analyze households. Why?
+    - Is $Y_i(d)$ well-defined for an individual? Somewhat tricky - likely spillovers across household members.
+    - Treatment is randomized by household.
+
+
+---
+
+ # Illustration: Gerber, Green and Larimer (2008)
+ 
+```{r, echo = F, message=F, warnings=F}
+library(tidyverse)
+library(haven)
+library(estimatr)
+library(knitr)
+options(digits=3)
+```
+
+```{r, message=F, warning=F, cache=T}
+# Load the data
+data <- read_dta('assets/data/ggr_2008_individual.dta')
+
+# Aggregate to the household level
+data_hh <- data %>% group_by(hh_id) %>% summarize(treatment = treatment[1], voted = mean(voted))
+
+# For each treatment condition, calculate N and share voting
+kable(data_hh %>% group_by(treatment) %>% summarize(N = n(), voted = mean(voted)))
+
+```
+
+---
+ # Illustration: Gerber, Green and Larimer (2008)
+ 
+- Let's estimate the ATE of the "Neighbors" treatment relative to control
+
+```{r, message=F, warning=F}
+# Estimated ATE of Neighbors (3) vs. Control (0)
+ate_est_neighbors = mean(data_hh$voted[data_hh$treatment == 3]) -
+  mean(data_hh$voted[data_hh$treatment == 0])
+
+ate_est_neighbors
+```
+- Now let's use our Neyman variance
+
+```{r, message=F, warning=F}
+# Estimate the sampling variance
+var_ate = var(data_hh$voted[data_hh$treatment == 3])/sum(data_hh$treatment == 3) +
+  var(data_hh$voted[data_hh$treatment == 0])/sum(data_hh$treatment == 0)
+
+# Square root to get estimated SE
+sqrt(var_ate)
+```
+
+---
+
+ # Illustration: Gerber, Green and Larimer (2008)
+
+- 95% asymptotic confidence interval and p-value against null of no ATE.
+
+```{r, message=F, warning=F}
+# Confidence interval (assuming asymptotic normality)
+ate_95CI = c(ate_est_neighbors - qnorm(.975)*sqrt(var_ate),
+  ate_est_neighbors + qnorm(.975)*sqrt(var_ate))
+
+ate_95CI
+
+# P-value H_0: \tau = 0, H_a: \tau \neq 0
+p_val = 2*pnorm(-abs(ate_est_neighbors/sqrt(var_ate)))
+
+p_val
+
+```
+
+---
+
+# Illustration: Gerber, Green and Larimer (2008)
+ 
+- Fun fact: You can get this via regression! Samii and Aronow (2012) show that the Neyman variance is equal to the heteroskedasticity-robust regression w/ HC2 correction, which is the default used in the `lm_robust` routine in the `estimatr` package
+
+```{r, message=F, warning=F}
+lm_robust(voted ~ I(treatment==3), data=data_hh %>% filter(treatment == 3|treatment == 0))
+
+```
+
+---
