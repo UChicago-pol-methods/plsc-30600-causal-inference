@@ -566,3 +566,490 @@ lm_robust(voted ~ I(treatment==3), data=data_hh %>% filter(treatment == 3|treatm
 ```
 
 ---
+
+class: title-slide
+
+# Randomization tests
+
+---
+
+# Randomization inference
+
+- Neyman framework:
+  - **Estimand**: Average Treatment Effect: $\tau = E[Y_i(1) - Y_i(0)]$
+  - Difference-in-means estimator: Known expectation and sampling variance
+  - **Hypothesis test.** Null of no ATE $H_0: \tau = 0$
+  - Large sample/asymptotic theory to get the distribution on $\hat{\tau}$ to calculate p-values
+--
+
+- Fisher randomization:
+  - Can we get a p-value under some null hypothesis without the large-sample assumptions?
+  - What does randomization alone justify?
+  - Exact p-values under a *sharp* null of no individual treatment effect $Y_i(1) = Y_i(0)$ for all $i$.
+  - "Randomization test" or "permutation test" approach: a flexible framework for inference under any known randomization scheme
+
+---
+
+# Running example - Exercise incentives
+
+  - .maroon[Charness and Gneezy (Econometrica, 2008)]: Does paying people to go to the gym cause
+them to go more once the incentives run out?
+  - **Randomized Experiment**: 120 UChicago Undergraduates -- 40 received no incentives, 80 were given 25 dollars if they went to the
+  gym once in the following week, 40 of those received 100 dollars if they went 8 times in the next 4 weeks
+    - 3 treatment conditions; complete randomization: (Control, Small incentives, Intensive incentives)
+  - **Outcome**: Average weekly gym attendance after incentives ran out (6-12 weeks after start)
+  - Question: Did incentives affect gym attendance even after they ran out? Can incentives create habits?
+  
+---
+
+# Running example - Exercise incentives
+
+  - Treatment is a multi-level indicator $D_i \in \{\text{Control}, \text{Low}, \text{High}\}$
+  
+```{r exercise, message=F, warnings=F}
+# Load in exercise dataset
+exercise <- read_csv("assets/data/exercise.csv")
+
+# Make a 3-level treatment variable
+exercise <- exercise %>% mutate(treatment = case_when(Control == 1 ~ "Control",
+                                                      High == 1 ~ "High",
+                                                      TRUE ~ "Low"))
+
+# Summarize the data
+kable(exercise %>% group_by(treatment) %>% summarize(N=n(), outcome = mean(After)))
+
+```
+  
+---
+
+# Running example - Exercise incentives
+
+  - On average, we see that students receiving the "High" incentives treatment work out about $.7$ more times per week in that 7-week post-incentives period.
+  - We probably could do normal Neyman large-sample inference here and our normal approximation would be fine.
+  - But can we justify a p-value purely on the basis of randomization?
+  - .maroon[Randomization testing] = p-values on the basis of knowing the distribution of possible treatment assignments $\mathbf{D} = \{D_1, D_2, \dotsc, D_N\}$ 
+  - Benefits:
+    - Inferences are **exact** (or exact up to monte carlo simulation error)
+    - Inferences are free of distributional assumptions/asymptotic theory
+  - Drawbacks:
+    - Null hypothesis that we'll use is a bit odd: **sharp** null of no individual effects.
+  
+---
+
+# Hypothesis testing review
+
+  - Four steps to conducting a hypothesis test
+  
+    - Define the null hypothesis.
+      - Neyman framework: $H_0: \tau = 0$
+      - Need a baseline null in order to calculate a probability for the data/test statistic
+      - The probability of observing a particular value of the test statistic depends on what is "true" about the underlying parameter.
+      - **Our thought experiment**: *If* the null were true, *How* likely would we see what we observe (or more extreme).
+    - Choose a test statistic
+      - In classical hypothesis testing, we pick something that has useful statistical properties:
+      
+            $$T = \hat{\tau}/\sqrt{\widehat{Var({\hat{\tau}})}}$$
+      
+---
+
+# Hypothesis testing review
+
+  -
+    - Determine the distribution of the test statistic under the null
+      - In classical testing, in large samples, $T \sim \mathcal{N}(0, 1)$
+      - In smaller samples, you may have made further assumptions (e.g. outcome is normally distributed) to show that $T$ follows a $t-$ distribution
+      - We need a distribution to get probabilities!
+    
+    - What is the probability of observing the test statistic $T$ that you observe in-sample (or a more extreme value) given the known distribution under the null?
+        - That's a **p-value**!
+
+---
+# What's different about randomization testing?
+
+  - Randomization tests are a kind of hypothesis test but with 2 main differences from our usual null hypothesis testing for the ATE.
+  
+    1. Different null hypothesis
+      - We'll assume a sharp null of no individual effect
+      - Different from null of no ATE
+    2. No assumptions/asymptotics to derive the distribution of $T$
+      - We can instead literally just calculate the value under each possible realization of $\mathbf{D}$
+      - And we know the distribution of $\mathbf{D}$ because we control it in an experiment.
+      - In practice, since there are often a lot of possible realizations of $\mathbf{D}$, we'll approximate
+      by monte carlo sampling.
+  
+---
+
+# Sharp null of no effect.
+
+  - The sharp null hypothesis states:
+  
+  $$H_0: \tau_i = Y_i(1) - Y_i(0) = 0 \text{  } \forall i$$
+  - Sharp null implies no ATE
+    - But no ATE does not imply no sharp null 
+  - Why do we make this assumption? 
+    - Because now the observed data tells us **everything** we need to know about the potential outcomes
+  
+---
+
+# The sharp null
+
+ - Remember our table of science? For a single realization of $\mathbf{D}$ we only observe half the potential outcomes?
+
+Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$   | Observed $Y_i$   |
+:---------:|:-----------------:|:--------:|:----------:|:----------------:|
+ $1$       |  $1$              |  $5$     |   ?        |    $5$           |
+ $2$       |  $0$              |  ?       |  $-3$      |    $-3$          |
+ $3$       |  $1$              |  $9$     |   ?        |    $9$           |
+ $4$       |  $0$              |  ?       |   $-1$     |    $-1$          |
+ $5$       |  $0$              |  ?       |   $-4$     |    $-4$          |
+ $6$       |  $1$              |  $2$     |   ?        |    $2$           |
+
+  - But what does the sharp null imply about the unobserved potential outcomes? Can we fill in those question marks?
+
+---
+
+# The sharp null
+
+ - Yes! Under the sharp null, $Y_i(1) = Y_i(0)$
+
+Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$   | Observed $Y_i$   |
+:---------:|:-----------------:|:--------:|:----------:|:----------------:|
+ $1$       |  $1$              |  $5$     |  $5$       |    $5$           |
+ $2$       |  $0$              |  $-3$    |  $-3$      |    $-3$          |
+ $3$       |  $1$              |  $9$     |   $9$      |    $9$           |
+ $4$       |  $0$              |  $-1$    |   $-1$     |    $-1$          |
+ $5$       |  $0$              |  $-4$    |   $-4$     |    $-4$          |
+ $6$       |  $1$              |  $2$     |   $2$      |    $2$           |
+
+  - Why is this useful? 
+  - Because now we can calculate the value of our test statistic *not only* under the observed $\mathbf{D}$ but under all other possible
+  realizations of $\mathbf{D}$!
+
+---
+
+# The sharp null
+
+ - Consider this alternate randomization. Under the null, the observed $Y_i$ remain the same. 
+
+Unit  $i$  | Treatment  $D_i$  | $Y_i(1)$ | $Y_i(0)$   | Observed $Y_i$   |
+:---------:|:-----------------:|:--------:|:----------:|:----------------:|
+ $1$       |  $1$              |  $5$     |  $5$       |    $5$           |
+ $2$       |  $1$              |  $-3$    |  $-3$      |    $-3$          |
+ $3$       |  $1$              |  $9$     |   $9$      |    $9$           |
+ $4$       |  $0$              |  $-1$    |   $-1$     |    $-1$          |
+ $5$       |  $0$              |  $-4$    |   $-4$     |    $-4$          |
+ $6$       |  $0$              |  $2$     |   $2$      |    $2$           |
+
+  - But our test statistic (e.g. a difference-in-means) will change because of the new assignment.
+
+---
+
+# The test statistic
+
+ - Our test statistic is any function of treatment assignments $\mathbf{D}$ and observed outcomes $\mathbf{Y}$.
+ - Lots of choices with different degrees of **power** for different kinds of treatment effects.
+ - We want to pick a test statistic that will return large values when the null is false and small values when it is true.
+ - One good option: (absolute) difference-in-means
+  
+  $$t(\mathbf{D}, \mathbf{Y}) = \bigg|\frac{1}{N_t} \sum_{i=1}^N Y_i D_i - \frac{1}{N_c} \sum_{i=1}^N Y_i (1 - D_i) \bigg|$$
+  - Well-powered when treatment effects are (roughly) constant
+  
+- What sorts of alternatives might this be bad for?
+  - Offsetting positive and negative effects will return small values of $t(\mathbf{D}, \mathbf{Y})$ as would no effects.
+- We might pick a different test statistic in this case!
+
+---
+
+# The randomization distribution
+
+  - Under the sharp null, we can calculate $t(\mathbf{D}, \mathbf{Y})$ for every possible realization of $\mathbf{D}$.
+    - Why? Because under the sharp null, observed $Y_i$ is unaffected by treatment assignment.
+  - Then to get a distribution for $t(\mathbf{D}, \mathbf{Y})$, we just need to know the distribution of $\mathbf{D}$. We know this by designing the experiment!
+--
+
+  - .maroon[Complete randomization]
+    - Every possible realization of $\mathbf{D}$ with $N_t$ treated units and $N_c$ control units
+--
+  - .maroon[Bernoulli]
+    - Every possible realization of $\mathbf{D}$ is equally likely
+    - Wait though! The test statistic is undefined when $N_c = 0$ or $N_t = 0$. We implicitly condition on observing at least one treated/control unit even under bernoulli randomization which places some restrictions on $\mathbf{D}$ (see Branson and Bind, 2019 in Statistical Methods in Medical Research)
+    - In practice, we'll usually analyze bernoulli trial experiments and do inference *conditional* on the observed $N_t$ and $N_c$ which is a complete randomization design. In large samples, the difference doesn't matter.
+--
+  - .maroon[Stratified] or .maroon[Cluster] randomized
+    - Stratification/clustering can be thought of as placing further restrictions on possible values of $\mathbf{D}$
+      - Only assignments where strata are perfectly balanced
+      - Only assignments where units sharing a cluster share the same treatment.
+
+---
+
+# Calculating p-values
+
+  - We get our p-value by comparing the observed test statistic for our particular sample $t^*$ to the distribution of $t(\mathbf{D}, \mathbf{Y})$
+  - For complete randomization, each of the $K$ possible realizations of $\mathbf{D}$ is equally likely, so we just enumerate all possible assignments $\mathbf{d} \in \Omega$ and calculate the share that are greater than our observed test statistic.
+  
+  $$Pr(t^* \ge t(\mathbf{D}, \mathbf{Y})) = \frac{\sum_{\mathbf{d} \in \Omega} \mathbb{I}(t(\mathbf{d}, \mathbf{Y}) \ge t^*)}{K}$$
+  - This is our p-value, which we compare to some threshold level $\alpha$ and reject the null when it's below that level.
+
+---
+
+# Monte carlo approximation
+
+  - For small samples, we could enumerate every possible treatment vector and actually just calculate $t(\mathbf{D}, \mathbf{Y})$.
+  - In large samples, that's tedious! 
+    - For the exercise example, just comparing High vs. Control incentives would involve ${80 \choose 40} \approx 1.07 \times 10^{23}$ unique assignments!
+  - We'll typically use a monte carlo approximation to the exact p-value.
+    - This is also easier for more complicated randomization schemes.
+  - **Procedure:** 
+    - For $K$ iterations:
+      1. Draw a realization of the treatment vector $\mathbf{d}_k$ from the known distribution of $\mathbf{D}$.
+      2. Calculate the test statistic $t_k = t(\mathbf{d}_k, \mathbf{Y})$
+    - Our p-value is the share of these $K$ test statistics that are greater than the observed $t^*$
+  - Think of the monte carlo procedure as generating an arbitrarily large number of samples from the sampling distribution of the test statistic under the null.
+  
+---
+
+# Putting it all together
+
+  - To do randomization inference under the sharp null
+  
+    1. Choose a test statistic
+    2. Calculate the observed test statistic in your sample $t^* = t(\mathbf{D}, \mathbf{Y})$
+    3. Draw another treatment vector $\mathbf{d}_1$ from the known distribution of $\mathbf{D}$
+    4. Calculate $t_1 = t(\mathbf{d}_1, \mathbf{Y})$
+    5. Repeat 3 and 4 as long as you want to get $K$ samples from the distribution of the test statistic under the null
+    6. Calculate $p = \frac{1}{K}\sum_{i=1}^K \mathbb{I}(t_k \ge t^*)$
+
+---
+
+# Application: Incentives to exercise
+
+  - Let's look at a test for the effect of high vs. control incentives in the Charness and Gneezy (2008) experiment.
+  
+```{r high vs control,  message=F, warning=F}
+# Subset to high vs. control
+exercise2 <- exercise %>% filter(treatment != "Low")
+
+# Calculate the observed test stat (absolute diff-in-means)
+t_observed <- abs(mean(exercise2$After[exercise2$treatment == "High"]) -
+  mean(exercise2$After[exercise2$treatment == "Control"]))
+
+t_observed
+```
+
+---
+
+# Application: Incentives to exercise
+  
+```{r high vs control 2}
+# For each iteration, sample a new treatment vector
+nIter <- 1e5
+set.seed(60637) # Set a random seed
+t_stat <- rep(NA, nIter)
+for (k in 1:nIter){
+  # Permute treatment (complete randomization)
+  exercise2$treatmentPerm = sample(exercise2$treatment)
+  # Calculate test-stat
+  t_stat[k] <- abs(mean(exercise2$After[exercise2$treatmentPerm == "High"]) -
+  mean(exercise2$After[exercise2$treatmentPerm == "Control"]))
+}
+
+# P-value
+mean(t_stat >= t_observed)
+
+```
+
+---
+
+# Application: Incentives to exercise
+  
+```{r high vs control figure, fig.width = 8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+
+# Visualize the sampling distribution
+data.frame(test = t_stat) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
+  geom_vline(xintercept = t_observed, col="red", lty=2) + xlab("Test statistic") + ylab("Frequency") + theme_bw()
+
+```
+
+---
+
+# Alternate test statistics
+
+  - Depending on the distribution of treatment effects, we might be interested in using different test statistics.
+  - For example, a difference in quantiles
+  
+```{r quantile,  message=F, warning=F}
+# Calculate the observed test stat (absolute diff in 75th quantile)
+t_obs_quant <- abs(quantile(exercise2$After[exercise2$treatment == "High"], .75) -
+  quantile(exercise2$After[exercise2$treatment == "Control"], .75))
+
+t_obs_quant
+```
+
+---
+
+# Quantile test statistic
+
+```{r quantile 2}
+# For each iteration, sample a new treatment vector
+nIter <- 1e5
+set.seed(60637) # Set a random seed
+t_stat_quant <- rep(NA, nIter)
+for (k in 1:nIter){
+  # Permute treatment (complete randomization)
+  exercise2$treatmentPerm = sample(exercise2$treatment)
+  # Calculate test-stat (75% quantile difference)
+  t_stat_quant[k] <- abs(quantile(exercise2$After[exercise2$treatmentPerm == "High"], .75) -
+  quantile(exercise2$After[exercise2$treatmentPerm == "Control"], .75))
+}
+
+# P-value
+mean(t_stat_quant >= t_obs_quant)
+
+```
+
+---
+
+# Quantile test statistic
+
+```{r quantile figure, fig.width = 8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+
+# Visualize the sampling distribution
+data.frame(test = t_stat_quant) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
+  geom_vline(xintercept = t_obs_quant, col="red", lty=2) + xlab("Test statistic") + ylab("Frequency") + theme_bw()
+
+```
+
+---
+
+# Difference in distributions
+
+- We've focused on differences in *mean* outcomes between groups, but what if means remain the same but the distributions change?
+- How do we compare distributions of treated/control outcomes? We look at their empirical cumulative distribution functions (eCDFs)
+
+$$\widehat{F_c(y)} = \frac{1}{N_c} \sum_{i:D_i = 0} \mathbb{I}(Y_i \le y)$$
+$$\widehat{F_t(y)} = \frac{1}{N_t} \sum_{i:D_i = 1} \mathbb{I}(Y_i \le y)$$
+- But how do we summarize the difference between two eCDFs? A common method is to take the absolute maximum difference between the two functions across all possible values of y. The *Kolmogorov-Smirnov* statistic is
+
+
+$$t_{\text{KS}} = \sup_{y}|\widehat{F_t(y)} - \widehat{F_c(y)}|$$
+
+---
+
+# Difference in distributions
+
+- Let's just visualize first the difference in the eCDFs 
+
+```{r ecdf}
+# ecdf() function will create a function given the inputs
+ecdf_high <- ecdf(exercise2$After[exercise2$treatment == "High"])
+ecdf_control <- ecdf(exercise2$After[exercise2$treatment == "Control"])
+
+# They're functions -- you give them a value of y, they'll give you a probability
+ecdf_high(1)
+ecdf_high(median(exercise2$After[exercise2$treatment == "High"]))
+
+```
+
+---
+
+# Difference in distributions
+
+```{r ecdf plot, fig.width=7, fig.height=5, fig.align="center"}
+# ggplot has a function for plotting ECDFs
+exercise2 %>% ggplot(aes(x=After, colour=treatment)) + stat_ecdf(geom="step") +
+  scale_colour_manual("Treatment", values=c("Red", "Blue")) + xlab("Average weekly gym visits") +
+  ylab("") + theme_bw()
+
+```
+
+---
+
+# Randomization test with a KS test statistic
+
+```{r ks 1,  message=F, warning=F}
+# Calculate the observed test stat (KS-stat)
+t_obs_ks <- ks.test(exercise2$After[exercise2$treatment == "High"],
+  exercise2$After[exercise2$treatment == "Control"])$statistic
+
+t_obs_ks
+```
+
+---
+
+# Randomization test with a KS test statistic
+
+```{r ks 2,  message=F, warning=F}
+# For each iteration, sample a new treatment vector
+nIter <- 1e5
+set.seed(60637) # Set a random seed
+t_stat_ks <- rep(NA, nIter)
+for (k in 1:nIter){
+  # Permute treatment (complete randomization)
+  exercise2$treatmentPerm = sample(exercise2$treatment)
+  # Calculate test-stat (KS-statistic)
+  t_stat_ks[k] <- ks.test(exercise2$After[exercise2$treatmentPerm == "High"],
+  exercise2$After[exercise2$treatmentPerm == "Control"])$statistic
+}
+
+# P-value
+mean(t_stat_ks >= t_obs_ks)
+
+```
+
+---
+
+# Randomization test with a KS test statistic
+
+```{r ks figure, fig.width=8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+
+# Visualize the sampling distribution
+data.frame(test = t_stat_ks) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
+  geom_vline(xintercept = t_obs_ks, col="red", lty=2) + xlab("Test statistic") + ylab("Frequency") + theme_bw()
+
+```
+---
+
+# Inverting tests to get confidence intervals
+
+ - Randomization tests alone give us p-values but no confidence intervals.
+ - One approach: "invert" the test -- for what values of a "treatment effect" would we fail to reject the null
+    - A $100(1-\alpha)\%$ confidence interval contains the set of parameter values for which an $\alpha$-level hypothesis test
+    would fail to reject the null.
+--
+ - Slight complication: We now need to actually define a "treatment effect" parameter:
+    - For example, assume a *constant additive effect* for all units
+    
+      $$Y_i(1) - Y_i(0) = \tau_0$$
+    - Our confidence set would be all of the values of $\tau_0$ for which we'd fail to reject the null
+    - Calculate via a grid search through possible values of $\tau_0$.
+ 
+---
+
+# Randomization tests in practice
+ 
+ .center[<img src="assets/peer_effects1.png" alt ="peer_effects", height="550px">]
+ 
+---
+
+# Randomization tests in practice
+ 
+ .center[<img src="assets/peer_effects2.png" alt ="peer_effects", height="550px">]
+ 
+---
+
+
+# Conclusion
+
+  - We've learned two frameworks for estimating and conducting inference for treatment effects in randomized experiments
+  - Neyman
+    - Define an estimand, the ATE: $\tau = E[Y_i(1) - Y_i(0)]$
+    - Choose an estimator, the difference-in-means
+    - Estimator has known mean and variance, do hypothesis tests under large-sample assumptions on its distribution (normality)
+  - Fisher
+    - Forget the estimation process, let's just do an (exact) test.
+    - Sharp null of no effect ( $Y_i(1) = Y_i(0) \text{ } \forall i$ )
+    - No large-sample approximations -- justified by randomization alone
+  - Usually we want to actually get an estimate of some well-defined quantity (like an ATE or conditional ATE) so we'll mostly
+  work in the Neyman setting, but Fisher randomization tests can be useful in complex assignment settings.
+ 
+---
