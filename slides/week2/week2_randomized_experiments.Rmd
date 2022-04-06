@@ -654,13 +654,12 @@ kable(exercise %>% group_by(treatment) %>% summarize(N=n(), outcome = mean(After
 
 # Hypothesis testing review
 
-  -
-    - Determine the distribution of the test statistic under the null
+  - Determine the distribution of the test statistic under the null
       - In classical testing, in large samples, $T \sim \mathcal{N}(0, 1)$
       - In smaller samples, you may have made further assumptions (e.g. outcome is normally distributed) to show that $T$ follows a $t-$ distribution
       - We need a distribution to get probabilities!
     
-    - What is the probability of observing the test statistic $T$ that you observe in-sample (or a more extreme value) given the known distribution under the null?
+  - What is the probability of observing the test statistic $T$ that you observe in-sample (or a more extreme value) given the known distribution under the null?
         - That's a **p-value**!
 
 ---
@@ -862,7 +861,7 @@ mean(t_stat >= t_observed)
 
 # Application: Incentives to exercise
   
-```{r high vs control figure, fig.width = 8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+```{r echo=F, fig.width=8, fig.height=6, fig.align='center'}
 
 # Visualize the sampling distribution
 data.frame(test = t_stat) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
@@ -911,7 +910,7 @@ mean(t_stat_quant >= t_obs_quant)
 
 # Quantile test statistic
 
-```{r quantile figure, fig.width = 8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+```{r echo=F, fig.width=8, fig.height=6, fig.align='center'}
 
 # Visualize the sampling distribution
 data.frame(test = t_stat_quant) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
@@ -954,7 +953,7 @@ ecdf_high(median(exercise2$After[exercise2$treatment == "High"]))
 
 # Difference in distributions
 
-```{r ecdf plot, fig.width=7, fig.height=5, fig.align="center"}
+```{r fig.width=7, fig.height=5, fig.align="center"}
 # ggplot has a function for plotting ECDFs
 exercise2 %>% ggplot(aes(x=After, colour=treatment)) + stat_ecdf(geom="step") +
   scale_colour_manual("Treatment", values=c("Red", "Blue")) + xlab("Average weekly gym visits") +
@@ -1000,7 +999,7 @@ mean(t_stat_ks >= t_obs_ks)
 
 # Randomization test with a KS test statistic
 
-```{r ks figure, fig.width=8, fig.height=6, echo=F, warning=F, message=F, fig.align="center"}
+```{r echo=F, fig.width=8, fig.height=6, fig.align='center'}
 
 # Visualize the sampling distribution
 data.frame(test = t_stat_ks) %>% ggplot(aes(x = test)) + geom_histogram(bins=30) +
