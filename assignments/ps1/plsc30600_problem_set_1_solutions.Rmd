@@ -1,0 +1,673 @@
+---
+title: 'PLSC 30600: Problem Set 1'
+author: "Solutions"
+date: "March 30, 2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Useful packages
+library(tidyverse)
+library(haven)
+
+```
+
+\begin{quote}\itshape
+This problem set is due at \textbf{11:59 pm on Tuesday, April 12th}.
+
+Please upload your solutions as a .pdf file saved as ``Yourlastname\_Yourfirstinitial\_pset1.pdf''. In addition, an electronic copy of your .Rmd file (saved as ``Yourlastname\_Yourfirstinitial\_pset1.Rmd'') must be submitted to the course website at the same time. We should be able to run your code without error messages. In addition to your solutions, please submit an annotated version of this `.rmd` file saved as ``Yourlastname\_Yourfirstinitial\_pset1\_feedback.rmd'' and a corresponding PDF saved as ``Yourlastname\_Yourfirstinitial\_pset1\_feedback.pdf'' noting the problems where you needed to consult the solutions and why along with any remaining questions or concerns about the material. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted. In total your submissions should consist of four files.
+\end{quote}
+
+# Problem 1
+
+In this problem we will examine what information the data might provide us regarding the magnitude or direction of a treatment effect if we are only willing to make a consistency or SUTVA assumption with respect to the potential outcomes and a positivity/overlap assumption on the probability of treatment.
+
+Consider our standard causal inference setup with a binary treatment and a binary outcome. $Y_i$ denotes the observed outcome for unit $i$, $Y_i \in \{0, 1\}$. $D_i$ denotes the observed treatment for unit $i$. $Y_i(d)$ denotes the potential outcome we would observe if $i$ were assigned treatment value $d$. By consistency, we have: $Y_i(d) = Y_i \text{ if } D_i = d$. By positivity, we have $0 < Pr(D_i = 1) < 1$. In other words, treatment is not deterministic and each unit could have received either treatment or control.
+
+Our estimand is the average treatment effect $\tau = E[Y_i(1) - Y_i(0)]$. We will focus here on causal identification and work with the population expectations $E[Y_i(d)]$ and $E[Y_i]$ and conditional expectations $E[Y_i(d) | D_i]$ and $E[Y_i | D_i]$, setting aside the question of estimation.
+
+## Part A
+
+Write an expression for the average treatment effect in terms of the difference in observed means between treatment and control $E[Y_i|D_i = 1] - E[Y_i|D_i = 0]$ and a bias term.
+
+---
+
+It's easiest to start with the ATE in terms of the ATT and ATC (using law of iterated expectations)
+
+$$
+E[Y_i(1) - Y_i(0)] = E[Y_i(1) - Y_i(0) | D_i = 1]Pr(D_i = 1) +  E[Y_i(1) - Y_i(0) | D_i = 0]Pr(D_i = 0)
+$$
+Then plug in our expressions for the ATT and ATC in terms of the difference in means + a selection bias term
+
+$$
+E[Y_i(1) - Y_i(0)] = \bigg[\bigg(E[Y_i | D_i = 1] - E[Y_i | D_i = 0]\bigg) - \bigg(E[Y_i(0) | D_i = 1] - E[Y_i(0) | D_i = 0]\bigg)\bigg]Pr(D_i = 1) \\ 
++ \bigg[\bigg(E[Y_i | D_i = 1] - E[Y_i | D_i = 0]\bigg) - \bigg(E[Y_i(1) | D_i = 1] - E[Y_i(1) | D_i = 0]\bigg)\bigg]Pr(D_i = 0)
+$$
+Factoring, re-arranging and using the fact that $Pr(D_i = 1) + Pr(D_i = 0) = 1$
+
+$$
+E[Y_i(1) - Y_i(0)] = \bigg(E[Y_i | D_i = 1] - E[Y_i | D_i = 0]\bigg)- \\ \bigg[\bigg(E[Y_i(0) | D_i = 1] - E[Y_i(0) | D_i = 0]\bigg)Pr(D_i = 1) + \bigg(E[Y_i(1) | D_i = 1] - E[Y_i(1) | D_i = 0]\bigg)Pr(D_i = 0)  \bigg]
+$$
+
+We can simplify a little bit more here. By consistency $E[Y_i(d) | D_i = d] = E[Y_i | D_i = d]$. Rearranging terms
+
+$$
+E[Y_i(1) - Y_i(0)] = \bigg(E[Y_i | D_i = 1] - E[Y_i | D_i = 0]\bigg)- \\ \bigg[\bigg(E[Y_i | D_i = 1]Pr(D_i = 0) - E[Y_i| D_i = 0]Pr(D_i = 1)\bigg) + \\ \bigg(E[Y_i(0) | D_i = 1]Pr(D_i = 1) - E[Y_i(1) | D_i = 0]Pr(D_i = 0) \bigg)\bigg] \
+$$
+
+Therefore our bias term can be split into two parts, one with entirely observable expectations weighted by the treatment probability and another with entirely unobservable expectations weighted by the treatment probabilities. You don't necessarily need to write it this way (the previous formulation is fine), but it makes it easier to answer the next questions to split it this way.
+
+## Part B
+
+Which components of the bias term can be observed from the data and which ones cannot? Can the average treatment effect be point-identified from the data alone? Explain why.
+
+----
+
+The treatment assignment probabilities $Pr(D_i = 1)$ and $Pr(D_i = 0)$ can be observed directly since $D_i$ is observed for each unit. By consistency, $E[Y_i(0)|D_i=0] = E[Y_i|D_i = 0]$ and $E[Y_i(1)|D_i=1] = E[Y_i|D_i = 1]$ are also directly observable. However, $E[Y_i(0)| D_i = 1]$ and $E[Y_i(1) | D_i = 0]$ cannot be directly observed due to the fundamental problem of causal inference. We only observe one counterfactual outcome and do not observe the potential outcomes for the opposite treatment condition directly. Therefore, without additional assumptions, we cannot point identify the average treatment effect because either of these two values could be between $0$ or $1$ (with a binary outcome).
+
+## Part C
+
+What is the smallest possible value of the bias term? What is the largest possible value of the bias term? (remember that $Y_i$ is a binary value that can either be $0$ or $1$).
+
+----
+
+We know that both $E[Y_i(0)| D_i = 1]$ and $E[Y_i(1) | D_i = 0]$ must be between $0$ and $1$ since $Y_i$ is a binary indicator and the expectation of a binary indicator is equal to the probability that it equals $1$. Since probabilities cannot be below $0$ or go above $1$, these are our known constraints on the two unobserved quantities.
+
+The bias term is minimized when $E[Y_i(0) | D_i = 1]Pr(D_i = 1) - E[Y_i(1) | D_i = 0]Pr(D_i = 0)$ is minimized and maximized when it is maximized (everything else is observed). The lower bound would be to set $E[Y_i(0) | D_i = 1]$ to $0$ and $E[Y_i(1) | D_i = 0]$ to $1$ which yields $- Pr(D_i = 0)$. Likewise, the upper bound of that term would be $Pr(D_i = 1)$.
+
+Plugging back into the full bias term yields a lower bound on the bias term of $(E[Y_i | D_i = 1] - 1)Pr(D_i = 0) - E[Y_i | D_i = 0]Pr(D_i = 1)$ and an upper bound on the bias term of $(E[Y_i | D_i = 1]Pr(D_i = 0) - (E[Y_i | D_i = 0] - 1)Pr(D_i = 1)$
+
+## Part D
+
+Using your answer from part C, write the upper and lower bounds of the average treatment effect in terms of the observable conditional expectations $E[Y_i | D_i = 1]$, $E[Y_i | D_i = 0]$. Is there any value of the observed difference-in-means for which the bounds only contain positive or only contain negative values? What does this tell us about whether we can learn about the direction of a treatment effect from the observed data alone?
+
+----
+
+Substituting back into the full expression yields a lower bound on the ATE of 
+
+$$
+E[Y_i | D_i = 1] - E[Y_i | D_i = 0] - E[Y_i | D_i = 1]Pr(D_i = 0) + (E[Y_i | D_i = 0] - 1)Pr(D_i = 1)
+$$
+Combining terms and rearranging
+
+$$
+E[Y_i | D_i = 1](1 - Pr(D_i = 0)) - E[Y_i | D_i = 0](1 - Pr(D_i = 1)) - Pr(D_i = 1)
+$$
+Using $Pr(D_i = 0) + Pr(D_i = 1) = 1$
+
+$$
+\bigg(E[Y_i | D_i = 1] - 1\bigg)Pr(D_i = 1) - E[Y_i | D_i = 0]Pr(D_i = 0)
+$$
+Likewise, the upper bound is
+
+$$
+E[Y_i | D_i = 1] - E[Y_i | D_i = 0] - (E[Y_i | D_i = 1] - 1)Pr(D_i = 0) + E[Y_i | D_i = 0]Pr(D_i = 1)
+$$
+Similar rearranging/substitution yields
+
+$$
+E[Y_i | D_i = 1]Pr(D_i = 1) + \bigg(1 - E[Y_i | D_i = 0]\bigg)Pr(D_i = 0)
+$$
+
+So the ATE is bounded by
+
+$$
+\bigg[\bigg(E[Y_i | D_i = 1] - 1\bigg)Pr(D_i = 1) - E[Y_i | D_i = 0]Pr(D_i = 0), \\
+E[Y_i | D_i = 1]Pr(D_i = 1) + \bigg(1 - E[Y_i | D_i = 0]\bigg)Pr(D_i = 0)\bigg]
+$$
+
+The lower bound cannot be positive since $E[Y_i|D_i = 1] -1$ and $-E[Y_i | D_i = 0]$ are both at most $0$. Likewise, the upper bound cannot be negative since $E[Y_i | D_i = 1]$ and $\bigg(1 - E[Y_i | D_i = 0]\bigg)$ are both at least $0$. Therefore, the bounds will always contain $0$ and are uninformative about the direction of the treatment effect. We need additional assumptions on $E[Y_i(1) | D_i = 0]$ and $E[Y_i(0) | D_i = 1]$ in order to even partially identify the average treatment effect.
+
+# Problem 2
+
+In "Monitoring Corruption: Evidence from a Field Experiment in Indonesia," [Olken (2007)](https://www.povertyactionlab.org/sites/default/files/research-paper/27_Olken_Monitoring_Corruption.pdf) examines whether increased monitoring had the effect of reducing corruption in Indonesian village road projects. At the time of the study, each of the villages was considering building a road. Olken randomly selected some of the villages to be told, prior to the beginning of construction, that their construction project will be audited by the central government. Olken then measured, for each village's road, the actual amount spent using a combination of engineering surveys, market surveys to determine material price and worker surveys to determine wages paid. He then compared this to the amount each village reported that it spent to measure the extent to which funds were diverted to non-construction purposes (corruption). You will analyze some of the data from this experiment here.
+
+The relevant variables you will need in the dataset are:
+
+- `desaid` - Village identifier
+- `kecid` - Sub-district identifier
+- `audit` - Treatment: Whether a village was assigned to receive an audit.
+- `lndiffeall4mainancil` - Outcome: Percent missing in expenditures. Measured as the difference between the log of the reported amount and the log of the actual amount spent on construction (main road + ancillary projects). Note that this can be negative occasionally when the amount reported happens to be *below* what Olken's estimates suggest was actually spent.
+
+Below is the code to load the dataset into R. You will need to subset the data down to those with non-missing outcome data.
+
+```{r, echo=T, message=F}
+### Load in the Olken (2007) data
+roads <- read_dta("jperoaddata.dta")
+
+```
+
+## Part A
+
+Assume that Olken randomly assigned individual villages to treatment or control. Using a simple difference-in-means estimator, generate a point estimate for the average treatment effect of an audit on the percent missing in expenditures. Construct a 95\% asymptotic confidence interval using the Neyman variance estimator. Generate a p-value for a hypothesis test of the null of no average treatment effect $H_0: \tau = 0$ using the Neyman variance and assuming asymptotic normality of the sampling distribution.
+
+----
+
+Let's write a quick function to calculate the Neyman variance -- this takes two vectors of treated and control outcomes and returns $\widehat{Var(\hat{\tau})} = \frac{S^2_t}{N_t} + \frac{S^2_c}{N_c}$.
+
+```{r neyman variance}
+
+# Input
+# treated: vector of outcomes among the treated units
+# control: vector of outcomes among the control units
+
+# Output
+# neyman variance estimate
+var_neyman = function(treated, control){
+  return(var(treated)/length(treated) + var(control)/length(control))
+}
+
+```
+
+First, let's clean the data and generate a point estimate. Then calculate an estimate of the sampling variance. Take the square root to get the estimated standard error. Then use our usual asymptotic normal confidence interval formula and obtain a p-value from the corresponding test against the null of $0$ ATE.
+
+```{r problem 2 part a}
+# Drop missing outcomes
+roads_clean <- roads %>% filter(!is.na(lndiffeall4mainancil))
+
+# Calculate point estimate
+ate_point <- mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 1]) -  mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 0])
+ate_point
+
+# Neyman variance
+var_ate <- var_neyman(roads_clean$lndiffeall4mainancil[roads_clean$audit == 1], roads_clean$lndiffeall4mainancil[roads_clean$audit == 0])
+sqrt(var_ate) # standard error
+
+# Confidence interval 95% asymptotic
+ate_95ci <- c(ate_point - qnorm(.975)*sqrt(var_ate), ate_point + qnorm(.975)*sqrt(var_ate))
+ate_95ci
+
+# P-value
+ate_pval <- 2*pnorm(-abs(ate_point/sqrt(var_ate)))
+ate_pval
+
+```
+We estimate that the average treatment effect of the audit on percent missingness is around $-0.092$ with a 95\% confidence interval of $[-0.150, -0.033]$. The corresponding p-value for the test of the null of no ATE is $0.0022$. We would reject the null at the typical $\alpha = .05$ level.
+
+Note that if you read the Samii and Aronow (2012) note you'll find that this is equivalent to the HC2 corrected heteroskedasticity-robust SEs in a regression of the outcome on a binary indicator for treatment, so you could use a regression to obtain these estimates. It turns out this is the default implementation in the `lm_robust` linear regression function in the `estimatr` package.
+
+## Part B
+
+Still assuming that the randomization scheme assigned treatment to villages individually, conduct a permutation test for the sharp null of no individual treatment effect. Use the absolute difference-in-means as your test statistic $T = \bigg| \frac{1}{N_t} \sum_{i=1}^N D_i Y_i - \frac{1}{N_c} (1-D_i)Y_i \bigg|$ where $N_t$ and $N_c$ are the number of treated and control units. Report the p-value. Do you reject the null at $\alpha = .01$? At $\alpha = .05$?
+
+---
+
+```{r permutation test 3}
+
+## Calculate actual Tstat
+t_actual = abs(mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 1]) -  mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 0]))
+
+## Number of iterations
+nIter = 10000
+
+# Set seed
+set.seed(60637)
+
+## Placeholder for the test statistic
+tstat = rep(NA, nIter)
+
+## For each permutation
+for (i in 1:nIter){
+  
+  ## Assume complete randomization at the individual level
+  roads_clean_temp <- roads_clean
+  roads_clean_temp$audit <- sample(roads_clean$audit)
+  
+  ## Calculate tstat
+  tstat[i] <- abs(mean(roads_clean_temp$lndiffeall4mainancil[roads_clean_temp$audit == 1]) -  mean(roads_clean_temp$lndiffeall4mainancil[roads_clean_temp$audit == 0]))
+  
+}
+
+## Calculate a p-value
+mean(tstat > t_actual)
+
+```
+Using a permutation test under the assumption that treatment was assigned completely at random, we obtain a p-value under the null of no individual treatment effect of $p = 0.0015$ -- around what we obtained in inference for the ATE. We would reject at both $\alpha = .05$ and $\alpha = .01$.
+
+## Part C
+
+Compare your point estimate, standard error and p-value from Part A to the estimates presented in Table 4 of Olken (2007) (under the "No Fixed Effects" column). How do they differ? Read the *Experimental Design* section of Olken (2007) and explain the *actual* process by which the audit treatment was assigned and how it differed from the process that you assumed in Parts A and B? Why might this explain the differences you observe?
+
+---
+
+Olken reports an estimated treatment effect of $-.091$, which is within rounding-error of the estimate that we obtained in Part A -- the point estimates are the same. However, the estimated variances of sampling distribution are markedly different. While in Part A, we report a standard error around $.030$, the standard error in Olken's table is $.043$. This corresponds to a much larger p-value than we obtained in Part A ($.034$ versus $.002$). In Olken's case, the evidence would be sufficient to reject the null at $\alpha = .05$ but not at $\alpha = .01$.
+
+This is because in Part A, our assumption that the treatment was assigned at random individually to villages is incorrect and does not accurately reflect the treatment assignment process that Olken actually carried out. The audit treatment was randomized at the level of the subdistrict due to concerns over spill-overs between villages. Control villages near treated villages may hear about the audits in a neighboring village and alter their behavior as a result. Because all villages within the same subdistrict receive the same treatment, there is a dependence in treatment assignment at the village level that has consequences for the sampling variance of our difference-in-means estimator. Our approach in Part A failed to take this into account, resulting in estimated standard errors that are too small. Essentially, there are fewer independent observations than what we had assumed in Part A. Assignments across subdistricts might have been independent, but assignments within are not. Olken's analysis accounts for this but the analysis in Part A does not.
+
+## Part D
+
+Conduct a permutation test for the sharp null of no individual treatment, but now accurately replicating the assignment scheme described by Olken (2007). Use the same test statistic. Report the p-value. Do you reject the null at $\alpha = .01$? At $\alpha = .05$? Compare the p-value to what you obtained in Part B and discuss why they do or do not differ?
+
+---
+
+In order to approximate the randomization scheme used by Olken, we need to take into account the clustered randomization by sub-district. One small note: the paper also claims to stratify assignment within individual strata of sub-district (50 strata). This does appear to have occurred, however some of the strata appear to contain single observations and it is not clear how the "randomization" was conducted within these strata based on the examination of the data (below). For most even-sized strata the randomization is "complete" (exactly 50% treated/control) but in other even-sized strata and all of the odd-sized strata, some have > 50% while others have <50%. In singleton strata, randomization would have to be Bernoulli or else treatment would be deterministic. Based on the discussion in the paper, it appears that the baseline probability of treatment across all strata was calibrated to be roughly $.5$. For this section, we'll ignore the stratification and just assume complete randomization over clusters -- this should yield more conservative inferences than accounting for strata (if strata predict the outcome) and is consistent with the first analysis without stratum fixed effects presented in Olken (2007).
+
+```{r}
+
+# Just for illustration, let's look at the balance of treatment assignment
+# within strata - some odd 
+roads_clean %>% group_by(kecid) %>% summarize(audit= audit[1], auditstratnum=auditstratnum[1]) %>% 
+  group_by(auditstratnum) %>% summarize(n = n(), mean(audit))
+
+```
+
+Below we conduct a permutation test assuming clustered complete randomization
+
+```{r permutation test 2}
+
+## Calculate actual Tstat
+t_actual = abs(mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 1]) -  mean(roads_clean$lndiffeall4mainancil[roads_clean$audit == 0]))
+
+## Number of iterations
+nIter = 10000
+
+# Set seed
+set.seed(60637)
+
+## Placeholder for the test statistic
+tstat = rep(NA, nIter)
+
+## What is the N of clusters treated?
+n_treated_cluster = roads_clean %>% group_by(kecid) %>% summarize(audit = audit[1]) %>% summarize(audit = sum(audit)) %>% pull(audit)
+
+## For each permutation
+for (i in 1:nIter){
+  
+  ## Assume complete randomization at the individual level
+  roads_clean_temp <- roads_clean
+  
+  ## Sample n_treated_cluster cluster indicators
+  treated_clust = sample(unique(roads_clean$kecid), size = n_treated_cluster, replace=F)
+  roads_clean_temp$audit = 0
+  # Assign treatment to the clusters we sampled
+  roads_clean_temp$audit[roads_clean_temp$kecid %in% treated_clust] <- 1
+
+  ## Calculate tstat
+  tstat[i] <- abs(mean(roads_clean_temp$lndiffeall4mainancil[roads_clean_temp$audit == 1]) -  mean(roads_clean_temp$lndiffeall4mainancil[roads_clean_temp$audit == 0]))
+  
+}
+
+## Calculate a p-value
+mean(tstat > t_actual)
+```
+Accounting for clustering, we obtain a p-value under the sharp null of $0.0316$. This is an order of magnitude larger than what we obtained in Part B and is much closer to the p-value reported in the paper for the test of the ATE. Failing to account for clustering in treatment assignment results in anti-conservative inferences for the treatment effect and rejection rates that are higher than the nominal alpha (Type I error) that we set.
+
+## Part E
+
+Aggregate the data to the level of the sub-district. Estimate the average treatment effect of being assigned to an audit on the average percent missing in expenditures for projects in the sub-district using the simple difference-in-means estimator. Construct a 95\% asymptotic confidence interval using the Neyman variance estimator. Generate a p-value for a hypothesis test of the null of no average treatment effect $H_0: \tau = 0$ using the Neyman variance and assuming asymptotic normality of the sampling distribution.
+
+Compare your results to your estimates from Part A and to the results reported in Olken (2007) Table 4 and discuss.
+
+----
+
+Aggregating and estimating the ATE
+
+```{r aggregation}
+
+# Aggregate treatment and outcome to the sub-district
+roads_aggregate = roads_clean %>% group_by(kecid) %>% summarize(audit= audit[1], outcome = mean(lndiffeall4mainancil))
+
+# Calculate ATE
+ate_agg <- mean(roads_aggregate$outcome[roads_aggregate$audit == 1]) - mean(roads_aggregate$outcome[roads_aggregate$audit == 0])
+ate_agg
+
+# Variance
+var_ate <- var(roads_aggregate$outcome[roads_aggregate$audit == 1])/sum(roads_aggregate$audit == 1) + 
+  var(roads_aggregate$outcome[roads_aggregate$audit == 0])/sum(roads_aggregate$audit == 0)
+
+# Standard error
+sqrt(var_ate)
+
+# 95\% CI
+ate_ci95 = c(ate_agg - qnorm(.975)*sqrt(var_ate), ate_agg + qnorm(.975)*sqrt(var_ate))
+ate_ci95
+
+# P-value
+pval_ate <- 2*pnorm(-abs(ate_agg/sqrt(var_ate)))
+pval_ate
+
+```
+Our estimated ATE of $-0.0948$ (95 % CI: [$-0.1772$, $-0.0124$]) differs slightly from the ATE estimate in the unaggregated data. This is because we have altered the estimand -- we are now no longer estimating the average effect on the village (which uniformly averages over villages) but rather an average effect on the sub-district. Because sub-districts have different sizes, this implies a non-uniform weighting on the village individual TEs (villages in larger clusters get comparatively less weight). If we wanted to, we could adjust our estimator to address this non-uniform weighting. However, sub-districts are for the most part of similar sizes (3-5 villages typically looking at the data) so the weighting isn't too far from uniform. Of course if we just assumed constant effects, this wouldn't even be a problem, but we don't want to do that because effects are rarely constant. 
+
+Our standard error of $0.042$ is very close to the $0.043$ cluster-robust standard errors reported in Olken's results. This suggests that we have addressed the clustering problem by aggregating up to the level of randomization. 
+
+# Problem 3
+
+In this problem, you will use simulation to learn about the sampling variance of the difference-in-means estimator for the ATE under different randomization schemes. 
+
+Assume the following data-generating process:
+
+We observe sample of $N=100$ observations. Each unit is assigned treatment $D_i = 1$ with some probability $Pr(D_i = 1)$. We'll assume that the outcome is generated by $Y_i = \tau D_i + \epsilon_i$ where $\epsilon_i \sim \text{Normal}(0, 1)$. We will assume a constant, additive treatment effect of $\tau = 2$ for the sake of the simulation.
+
+## Part A
+
+Suppose treatment was assigned via independent Bernoulli trials with a constant probability of treatment $Pr(D_i = 1) = .5$ and $D_i {\perp \! \! \! \perp} D_j$ for all units $i \neq j$. Using a monte carlo simulation and assuming the data-generating process above, find the variance of the sampling distribution of the simple difference-in-means estimator (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations).
+
+---
+
+```{r bernoulli randomization}
+
+set.seed(60637)
+nIter = 10000
+bernoulli_ate = rep(NA, nIter)
+N = 100
+
+for (i in 1:nIter){
+  data <- data.frame(D = rbinom(N, 1, .5))  
+  data$Y = 2*data$D + rnorm(N, sd=1)
+  bernoulli_ate[i] <- mean(data$Y[data$D == 1]) - mean(data$Y[data$D == 0])
+}
+
+var(bernoulli_ate, na.rm=T)
+
+
+```
+The variance of the sampling distribution is approximately $0.04$. This is roughly what we'd expect from theory. By construction, $\sigma^2_c = \sigma^2_t = 1$. And the variance is at least $\frac{1}{50} + \frac{1}{50} = .04$. 
+
+**Below is some bonus stuff - this is not part of the solutions!**
+
+Some minor technical stuff that's not too essential, but possibly interesting. In your simulation above, there should have been no realizations where $N_t = 0$ or $N_c = 0$ (assuming you used the right seed). In these particular edge-cases, the difference-in-means is undefined (no treated units/no control units!). Obviously as the sample gets arbitrarily large, the probability that these events occur goes to $0$ and even in this simulation with $N=100$, their probability is very, very small but still not 0. From a theoretical standpoint though, our inference in the bernoulli randomization setting will always implicitly be conditioning on some values of $N_t$ and $N_c$.
+
+In practice, we'll usually do inference *conditional* on the observed $N_t$ and $N_c$ which is equivalent to a complete randomization design -- so all of our usual inferential stuff goes through.
+
+We could also derive the variance conditioning instead on observing at least one treated unit and at least one control unit. Let's show what that looks like here.
+Under complete randomization, for inference on a PATE, from Imbens and Rubin (2015), we have for any fixed $N_t$ and $N_c$
+
+$$Var(\hat{\tau} | N_t, N_c) = \frac{\sigma^2_t}{N_t} + \frac{\sigma^2_c}{N_c}$$
+
+Now, use the law of total variance to get $Var(\hat{\tau} | N_t > 0, N_c > 0)$
+
+$$Var(\hat{\tau}| N_t > 0, N_c > 0) = E[Var(\hat{\tau}| N_t, N_c) | N_t > 0, N_c > 0)] + Var(E[\hat{\tau}| N_t, N_c] | N_t > 0, N_c > 0)$$
+
+Second term is $0$ since the expectation is always $\tau$ -- we know the estimator is unbiased. Then
+
+$$E[Var(\hat{\tau}| N_t, N_c) | N_t > 0, N_c > 0)]  = \sigma^2_t E\bigg[\frac{1}{N_t} \bigg| N_t > 0, N_c > 0\bigg] + \sigma^2_c E\bigg[\frac{1}{N_c} \bigg| N_t > 0, N_c > 0\bigg]$$
+
+First, we can get a lower bound on the variance by Jensen's inequality $E\bigg[\frac{1}{X}\bigg] \ge \frac{1}{E[X]}$ for $X > 0$ since $1/X$ is convex for positive values of $X$. $E[N_t | N_t > 0, N_c > 0] = (N - 2)Pr(D_i = 1) + 1$ since after conditioning on having at least one treated and at least one control, the remaining $N-2$ observations are independent bernoulli trials
+
+$$E[Var(\hat{\tau}| N_t, N_c) | N_t > 0, N_c > 0)] \ge \frac{\sigma^2_t}{(N - 2)Pr(D_i = 1) + 1} + \frac{\sigma^2_c}{(N - 2)Pr(D_i = 0) + 1}$$
+
+However, we can also show that this is a pretty good approximation especially when $N$ is large
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \sum_{k = 0}^{N-2} \frac{1}{k + 1} {N-2 \choose k} p^k q^{N-k - 2}$$
+with the above expression following from rewriting $\frac{1}{N_t} | N_t > 0, N_c > 0 = \frac{1}{1 + X}$ where $X$ is a binomial with $N-2$ trials each with probability $p$ and $q = 1-p$. We then just use the law of the unconscious statistician. With binomial coefficients, the easiest proof tricks are to re-arrange to get a sum that looks like a sum over the PMF of another binomial since we know that sums to $1$.
+
+By the definition of the binomial coefficient ${N-2 \choose k} = \frac{(N-2)!}{k!(N-2-k)!}$. Substituting in:
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \sum_{k = 0}^{N-2} \frac{(N-2)!}{(k+1)!(N-2-k)!} p^k q^{N-k - 2}$$
+
+(since $(k+1)! = (k+1)k!$). Then, we use the typical proof trick of multiplying by 1. Here we have $(N-1)p$ in the numerator and denominator.
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \bigg(\frac{1}{(N-1)p}\bigg) \sum_{k = 0}^{N-2} \bigg(\frac{(N-1)!}{(k+1)!(N-1-k -1)!}\bigg) p^{k+1} q^{N-1 - k - 1}$$
+
+Now, we recognize another binomial coefficient:
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \bigg(\frac{1}{(N-1)p}\bigg) \sum_{k = 0}^{N-2} {N-1 \choose k+1} p^{k+1} q^{N-1 - k - 1}$$
+We recognize that this is a PMF of a binomial with $N-1$ trials and probability $p$ but with a part of the sum cut off ($k=0$). We can re-write it to make this clearer
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \bigg(\frac{1}{(N-1)p}\bigg) \sum_{k = 1}^{N-1} {N-1 \choose k} p^{k} q^{N-1 - k}$$
+So this is equal to $1$ minus the PMF evaluated at $k=0$ (the last missing term)
+
+$$E\bigg[\frac{1}{N_t} \bigg | N_t > 0, N_c > 0\bigg] = \frac{1 - (1-p)^{N-1}}{(N-1)p}$$
+So our exact variance under a Bernoulli random assignment conditional on observing at least one treated or control unit
+
+$$Var(\hat{\tau}| N_t > 0, N_c > 0) = \sigma^2_t \left(\frac{1 - (1-p)^{N-1}}{(N-1)p}\right) + \sigma^2_c \left(\frac{1 - p^{N-1}}{(N-1)(1-p)}\right)$$
+
+As $N$ gets large, the numerators converge to $1$ ($0 < p < 1$) and the denominators converge to $E[N_t] = Np$ and $E[N_c] = N(1-p)$ approximately. 
+
+All this is to say that even when we don't condition on the specific randomization of the sample $N_t$ and $N_c$, the expression for the true variance of $\hat{\tau}$ is essentially the same for large $N$. To put this in perspective -- the exact variance formula here yields a variance of $0.0404$ instead of our approximation $0.04$. You can play around with what happens when $N$ is small or $N$ gets even larger.
+
+## Part B
+
+Now consider a completely randomized experiment where $N_t = 50$ units receive treatment and $N_c = 50$ units receive control. In this setting, the marginal probability of treatment is $\mathbb{P}(D_i = 1) = .5$ but $D_i$ is not independent of $D_j$. Using a monte carlo simulation for this assignment process, find the variance of the sampling distribution of the simple difference-in-means estimator (again, use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations). Compare your variance to the variance under the data-generating process from Part A and discuss why they may differ.
+
+---
+
+```{r complete randomization}
+
+set.seed(60637)
+nIter = 10000
+complete_ate = rep(NA, nIter)
+N = 100
+
+for (i in 1:nIter){
+  data <- data.frame(D = sample(rep(c(0,1), each = N/2)))  
+  data$Y = 2*data$D + rnorm(N, sd=1)
+  complete_ate[i] <- mean(data$Y[data$D == 1]) - mean(data$Y[data$D == 0])
+}
+
+var(complete_ate)
+
+
+```
+We again obtain a variance around $.04$. This essentially does not differ from the variance above (suggesting that complete randomization and bernoulli randomization) though in theory the two *are* different (the complete randomization variance is a lower bound). With N=10 the difference becomes clearer.
+
+## Part C
+
+Sometimes when designing an experiment, it is impossible to completely randomize over the entire sample of respondents since respondents arrive in a sequence. For example, experimenters fielding online surveys do not observe the entire sample and sometimes have to randomly assign treatments in a "just-in-time" manner.
+
+Efron (1971) suggests an alternative approach to independent bernoulli randomization that biases the coin depending on how many units have previously been assigned to the treatment group versus the control group.
+
+Consider the randomization scheme where treatment is assigned sequentially for units $1$ through $100$ according to their order. In other words, treatment for unit 1 is randomly assigned. Then treatment for unit 2 is randomly assigned depending on the value of the treatment for unit 1, and so on... Let $\tilde{N_{t,i}}$ denote the number units treated prior to unit $i$, $\tilde{N_{c,i}}$ the number of units under control prior to unit $i$ and $\tilde{Z}_i = \tilde{N_{t,i}} - \tilde{N_{c,i}}$ or the difference in the number of treated and control groups. By definition, $\tilde{Z}_1 = 0$ since there are no treated or control units when the first unit is assigned.
+
+Define the probability of treatment $Pr(D_i = 1)$ for the $i$th unit as
+
+$$
+Pr(D_i = 1) =
+\begin{cases}
+\pi &\text{ if } \tilde{Z}_i < 0\\
+0.5 &\text{ if } \tilde{Z}_i = 0\\
+(1- \pi) &\text{ if } \tilde{Z}_i > 0\\
+\end{cases}
+$$
+
+Intuitively, the assignment mechanism biases the probability of receiving treatment upward if there are fewer treated than control and biases it downward if there are more treated than control at the time of assignment. 
+
+Let $\pi = .9$. Using a monte carlo simulation for this assignment scheme, find the variance of the sampling distribution of the simple difference-in-means estimator (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations). Compare your variance to your result in Part A and your result in Part B. Discuss any differences you observe.
+
+---
+
+
+```{r efron randomization}
+
+set.seed(60637)
+nIter = 10000
+efron_ate = rep(NA, nIter)
+N = 100
+pi_prob = .9
+
+for (i in 1:nIter){
+  
+  sampling_vec <- rep(NA, N)
+  
+  # First trial is bernoulli
+  sampling_vec[1] <- rbinom(1, 1, .5)
+  
+  for (j in 2:N){
+    Z <- sum(sampling_vec[1:j-1]) - sum(1-sampling_vec[1:j-1])
+    if (Z < 0){
+      sampling_vec[j] <- rbinom(1,1, pi_prob)
+    }else if(Z > 0){
+      sampling_vec[j] <- rbinom(1,1, 1-pi_prob)
+    }else{
+      sampling_vec[j] <- rbinom(1, 1, .5)
+    }
+  }
+  
+  data <- data.frame(D = sampling_vec)  
+  data$Y = 2*data$D + rnorm(N, sd=1)
+  efron_ate[i] <- mean(data$Y[data$D == 1]) - mean(data$Y[data$D == 0])
+}
+
+var(efron_ate)
+
+
+```
+We get a comparable variance to our estimator from part A and B . With $N$ of 10 we see that we get closer to the variance from B (complete randomization) versus the variance from part A. This is because the "biased coin" tends to generate allocations with even $N_t$ and $N_c$ with higher probability relative o to regular bernoulli randomization. 
+
+## Part D
+
+Using your simulation results from Part C, is the difference-in-means estimator using this assignment scheme unbiased for the average treatment effect $\tau = 2$?
+
+---
+
+Yes! The mean of our estimator is $2$ (w/in approximation error) which is the population ATE.
+
+```{r}
+mean(efron_ate)
+```
+
+## Part E
+
+Intuitively, what will happen to the sampling variance if $\pi$ is set to be less than $.5$? (You don't need to use a simulation to answer this, but you are welcome to use one if it would help).
+
+---
+
+Intuitively, the variance of the ATE estimator should become greater as we are now allocating *less* probability to even treatment assignments and more probability to uneven ones. For example, with $\pi = .1$ the variance is about 3x what we get with $\pi = .9$.
+
+```{r bad efron randomization}
+
+set.seed(60637)
+nIter = 10000
+efron_ate = rep(NA, nIter)
+N = 100
+pi_prob = .1
+
+for (i in 1:nIter){
+  
+  sampling_vec <- rep(NA, N)
+  
+  # First trial is bernoulli
+  sampling_vec[1] <- rbinom(1, 1, .5)
+  
+  for (j in 2:N){
+    Z <- sum(sampling_vec[1:j-1]) - sum(1-sampling_vec[1:j-1])
+    if (Z < 0){
+      sampling_vec[j] <- rbinom(1,1, pi_prob)
+    }else if(Z > 0){
+      sampling_vec[j] <- rbinom(1,1, 1-pi_prob)
+    }else{
+      sampling_vec[j] <- rbinom(1, 1, .5)
+    }
+  }
+  
+  data <- data.frame(D = sampling_vec)  
+  data$Y = 2*data$D + rnorm(N, sd=1)
+  efron_ate[i] <- mean(data$Y[data$D == 1]) - mean(data$Y[data$D == 0])
+}
+
+var(efron_ate)
+
+
+```
+
+# Problem 4
+
+Do international election monitors reduce the incidence of electoral fraud? [Hyde (2007)](https://www.aeaweb.org/articles?id=10.1257/000282803321946921) studies the 2003 presidential election in Armenia, an election that took place during a period where the incumbent ruling party headed by President Robert Kocharian had consolidated power and often behaved in ways that were considered undemocratic.
+
+The full citation for this paper is
+
+> Hyde, Susan D. "The observer effect in international politics: Evidence from a natural experiment." *World Politics* 60.1 (2007): 37-63.
+
+At the time of the election, OSCE/ODIHR election monitors reported widespread electoral irregularities that favored the incumbent party such as ballot-box stuffing (pp. 47). However, we do not necessarily know whether these irregularities would have been worse in the absence of monitors. Notably, not all polling stations were monitored -- the OSCE/ODIHR mission could only send observers to some of the polling stations in the country. Since in the context of this election only the incumbent party would have the capacity to carry out significant election fraud, Hyde examines whether the presence of election observers from the OSCE/ODIHR mission at polling stations in Armenia reduced the incumbent party's vote share at that polling station.
+
+For the purposes of this problem, you will be using the `armenia2003.dta` dataset
+
+The R code below will read in this data (which is stored in the STATA .dta format)
+```{r, echo=T, message=F}
+### Hyde (2007) Armenia dataset
+armenia <- read_dta("armenia2003.dta")
+
+
+```
+
+This dataset consists of 1764 observations polling-station-level election results from the 2003 Armenian election made available by the Armenian Central Election Commission. The election took place over two rounds with an initial round having a large number of candidates and a second, run-off election, between Kocharian and the second-place vote-getter, Karen Demirchyan. We will focus on monitoring and voting in the first round.  The specific columns you will need are:
+
+- `kocharian` - Round 1 vote share for the incumbent (Kocharian)
+- `mon_voting` - Whether the polling station was monitored in round 1 of the election
+- `turnout` - Proportion of registered voters who voted in Round 1
+- `totalvoters` - Total number of registered voters recorded for the polling station
+- `total` - Total number of votes cast in Round 1
+- `urban` - Indicator for whether the polling place was in an urban area (0 = rural, 1 = urban)
+- `nearNagorno` - Indicator for whether the polling place is near the Nagorno-Karabakh region (0 = no, 1 = yes)
+
+## Part A
+
+Hyde describes the study as a "natural experiment," stating: 
+
+> "I learned from conversations with staff and participants in the OSCE observation mission to Armenia that the method used to assign observers to polling stations was functionally equivalent to random assignment. This permits the use of natural experimental design. Although the OSCE/ODIHR mission did not assign observers using a random numbers table or its equivalent, the method would have been highly unlikely to produce a list of assigned polling stations that were systematically different from the polling stations that observers were not assigned to visit. Each team's assigned list was selected arbitrarily from a complete list of polling stations." (p. 48)
+
+What makes this study a "natural experiment" and not a true experiment? What assumption must the study defend in order to identify the causal effect of election monitoring that would be guaranteed to hold in a randomized experiment?
+
+---
+
+The study is a natural experiment because the researcher does not know or control the treatment assignment probability, nor did the OSCE/ODIHR mission actually use an observable randomization process to assign treatment. Rather, there was an unknown and unobserved process of assignment, but one where the researcher is confident assignment took place in a manner independent of the potential outcomes.
+
+A lot of as-if-random natural experiments exploit our prior assumptions and beliefs about certain natural processes (e.g. natural disasters) -- that they occur in ways that are arbitrary and non-selective. Here, the argument for an as-if-random identification strategy is similar - it's an appeal to our beliefs about the arbitrariness of bureaucracy. Even though the lists were not actually random, the mechanism by which they were disbursed was such that assigned poling stations shouldn't look different from those unassigned (e.g. if they were copying and pasting from an Excel spreadsheet that had been entered in some arbitrary manner)
+
+## Part B
+
+For the purposes of this part, assume election monitors were assigned as the author describes - in a manner "functionally equivalent to random assignment." Assume that this is true. Using the difference-in-means estimator, estimate the average treatment effect of election monitoring on incumbent vote share in round 1. Provide a 95\% asymptotic confidence interval using the Neyman variance estimator and interpret your results. Can we reject the null of no average treatment effect at the $\alpha = 0.05$ level? 
+
+---
+
+```{r}
+est_ate <- mean(armenia$kocharian[armenia$mon_voting ==1]) - mean(armenia$kocharian[armenia$mon_voting ==0])
+est_ate
+
+var_ate <- var(armenia$kocharian[armenia$mon_voting ==1])/sum(armenia$mon_voting ==1) +
+  var(armenia$kocharian[armenia$mon_voting ==0])/sum(armenia$mon_voting ==0)
+sqrt(var_ate)
+
+ci_95ate = c(est_ate - qnorm(.975)*sqrt(var_ate), est_ate + qnorm(.975)*sqrt(var_ate))
+ci_95ate
+
+p_value = 2*pnorm(-abs(est_ate/sqrt(var_ate))) 
+p_value 
+```
+We estimate that monitoring reduced the incumbent's vote share by $0.0587$ (5.87 percentage points) with a 95\% confidence interval of $[-.0779, -.0395]$. We obtain an extremely small p-value for the test against the null of no ATE and would reject the null of no average treatment effect at $\alpha = .05$. We find that, assuming monitoring was as-good-as randomly assigned, assignment of election monitors reduced the incumbent's vote share in monitored regions -- consistent with a story where monitors reduced the incumbent's ability to commit fraud.
+
+## Part C
+
+Evaluate the author's identification assumptions by examining whether the treatment is balanced on three pre-treatment covariates: the total number of registered voters, whether a polling place was in an urban area, and whether the polling place was located near the Nagorno-Karabakh region (Kocharian's home region and a disputed territory between Armenia and Azerbaijan). Discuss your results. Are they consistent with the author's description of "as-if random" assignment? Do you believe that your estimator from Part B is unbiased for the true average treatment effect?
+
+---
+
+Below we'll generate a balance table for all three of the covariates, reporting the difference-in-means, t-statistic and p-value for the null of no difference.
+
+```{r}
+
+# Initialize table
+balance_table = data.frame(covariate = c("Total Voters", "Urban", "Near Nagorno-Karabakh"))
+
+# Means
+balance_table$point = c(mean(armenia$totalvoters[armenia$mon_voting ==1]) - mean(armenia$totalvoters[armenia$mon_voting ==0]),
+                        mean(armenia$urban[armenia$mon_voting ==1]) - mean(armenia$urban[armenia$mon_voting ==0]),
+                        mean(armenia$nearNagorno[armenia$mon_voting ==1]) - mean(armenia$nearNagorno[armenia$mon_voting ==0]))
+
+# Standard Error
+balance_table$se <- c(sqrt(var(armenia$totalvoters[armenia$mon_voting ==1])/sum(armenia$mon_voting==1) + 
+                        var(armenia$totalvoters[armenia$mon_voting ==0])/sum(armenia$mon_voting==0)),
+                        sqrt(var(armenia$urban[armenia$mon_voting ==1])/sum(armenia$mon_voting==1) + 
+                        var(armenia$urban[armenia$mon_voting ==0])/sum(armenia$mon_voting==0)),
+                        sqrt(var(armenia$nearNagorno[armenia$mon_voting ==1])/sum(armenia$mon_voting==1) + 
+                        var(armenia$nearNagorno[armenia$mon_voting ==0])/sum(armenia$mon_voting==0)))
+
+# T-stat
+balance_table$tstat <- balance_table$point/balance_table$se
+
+# p-value
+balance_table$pval <- 2*pnorm(-abs(balance_table$tstat))
+
+balance_table
+
+```
+
+We find that monitors tended to go to regions with more registered voters and to regions that were more urban. This is consistent with possible treatment
+non-compliance on the part of monitors. Less populated and less urbanized regions may have been more difficult to reach and monitor compared to more urban locales. Therefore, even if the assignment mechanism was as-if-random, the actual implementation of monitoring is unlikely to have been truly as-good-as-random given the magnitude of the pre-treatment covariate differences we observe between monitored and non-monitored regions. Had treatment truly been assigned as-if random, such imbalances in covariates should be extremely rare. 
+
+This would not matter if these covariates were entirely uncorrelated with the potential outcomes. However, we have strong theoretical reasons to believe that voting behavior is different in urban relative to rural regions. Therefore, our assumption of ignorability of treatment is unlikely to hold and, as a result, our difference-in-means estimator will be biased for the true average treatment effect of monitoring.
