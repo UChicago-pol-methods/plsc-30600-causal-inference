@@ -660,7 +660,7 @@ kable(exercise %>% group_by(treatment) %>% summarize(N=n(), outcome = mean(After
       - We need a distribution to get probabilities!
     
   - What is the probability of observing the test statistic $T$ that you observe in-sample (or a more extreme value) given the known distribution under the null?
-        - That's a **p-value**!
+      - That's a **p-value**!
 
 ---
 # What's different about randomization testing?

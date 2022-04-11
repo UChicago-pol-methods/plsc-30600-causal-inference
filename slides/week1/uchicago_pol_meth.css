@@ -9,6 +9,7 @@ Define UChicago Colors
   --maroon: #800000;
   --dark-gray: #767676;
   --light-gray: #D6D6CE;
+  --black: #000000;
 /* Secondary color palette */
   --yellow: #FFA319;
   --orange: #C16622;
@@ -20,7 +21,7 @@ Define UChicago Colors
 /* Main and accent color */
   --main: var(--maroon);
   --accent: var(--orange);
-  --text: var(--dark-gray);
+  --text: var(--black);
   --text-inverse: var(--light-gray);
 }
 
