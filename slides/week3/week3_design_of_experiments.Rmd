@@ -180,7 +180,7 @@ W_obs <- as.numeric(Rbeta.hat %*% solve(RVR, Rbeta.hat))  # Wooldridge, equation
 
 # Multivariate balance tests
   
-```{r perm test, echo=F, message=F, warning=F, cache=T, fig.width=10, fig.height=8, fig.align='center'}
+```{r, echo=F, message=F, warning=F, cache=T, fig.width=10, fig.height=8, fig.align='center'}
 
 set.seed(60637)
 sims <- 100
