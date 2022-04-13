@@ -547,3 +547,237 @@ $$E[Y_i(1) |  M_i(1) = 1] - E[Y_i(0) |  M_i(0) = 1]$$
 - Therefore, conditioning on a post-treatment quantity "breaks" the experiment -- now it's an observational study.
 
 ---
+
+# Example: Exercise experiment
+
+- In the exercise experiment, we observe exercise/compliance with the incentives (once in week 1, 8 times in 2-5)
+- What if we tried to estimate the "effect" conditional on having successfully complied with the incentives treatment
+
+```{r}
+exercise2 <- exercise2 %>% mutate(reachedGoal = case_when(After1 > 0&(After2 + After3 + After4 + After5 >= 8) ~ 1,
+                                                          TRUE ~ 0))
+
+# Difference among those who did not
+no_goal  <- lm_robust(After ~ I(treatment == "High"), data=exercise2 %>% filter(reachedGoal == 0))
+tidy(no_goal) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.error, statistic, p.value)
+
+# Difference among those who reached goal
+goal <- lm_robust(After ~ I(treatment == "High"), data=exercise2 %>% filter(reachedGoal != 0))
+tidy(goal) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.error, statistic, p.value)
+
+```
+
+
+---
+
+# Example: Exercise experiment
+
+- What's going on - why did we suddenly find a *negative* effect of treatment?
+- Consider the treated and control groups among the incentives-completing subset
+  - Treated group: People who worked out at the intense level having received the incentive
+  - Control group: People who **still** worked out at the intense level **despite** not getting the incentive
+  
+---
+
+# Example: Non-compliance
+
+- Consider the setting where the taking of treatment is subject to non-compliance. 
+  - Not everyone who is assigned treatment takes it and not everyone who is assigned to control stays in control.
+  - Basically always happens in field experiments (in one direction at least)
+--
+
+- Let $D_i$ denote the *assigned* treatment and $S_i$ denote the treatment that is actually taken
+  - $D_i$ is randomized but $S_i$ is not.
+  - What happens when we analyze the difference between units with observed treatment $S_i = 1$ and observed treatment $S_i = 0$
+  
+--
+- $S_i$ is post-treatment. It has potential outcomes $S_i(d)$. What are those groups?
+
+---
+
+# Principal strata
+
+- We can think of the combination of $S_i$ and $D_i$ as defining a "sub-group" of units -- these are referred to as "principal strata"
+
+Stratum              | $S_i(1)$          |  $S_i(0)$ | 
+:-------------------:|:-----------------:|:---------:|
+"Always-takers"      |  $1$              |  $1$      |  
+"Never-takers"       |  $0$              |  $0$      |  
+"Compliers"          |  $1$              |  $0$      | 
+"Defiers"            |  $0$              |  $1$      |
+
+--
+
+- Units with $S_i = 1$ could be any three of these strata. Even observing $D_i$ narrows it down to only two - we can't observe the strata directly.
+- Strata aren't necessarily independent of potential outcomes $Y_i(d)$ 
+
+---
+
+# Treatment non-compliance
+
+- In all cases of treatment non-compliance, we can always just take the difference between those *assigned* treatment and *assigned* control 
+irrespective of their actual uptake. This is unbiased for the "intent-to-treat effect"
+  - Challenge with interpreting the ITT -- it's strength depends on the *actual* effect of the treatment and the compliance rate.
+  - Is a null ITT because our treatment doesn't work or because our encouragement doesn't work?
+--
+
+- When we get to instrumental variables, we'll talk about how -- in the treatment non-compliance setting -- we can obtain an estimate of the effect *among the compliers*
+  - Unfortunately doesn't solve the problem of poor encouragements
+  - Weak encouragement = biased/high-variance IV estimates.
+
+---
+
+
+
+# Example: Administrative data
+
+- .maroon[Knox, Lowe and Mummolo (2020)] consider the problem of estimating the effect of civilian race on police use of force.
+  - Typically, past studies would use administrative data from police departments on stops
+  - Compare police use of force among Black civilians who are stopped and white civilians who are stopped.
+  - **Problem**: Stops are post-treatment!
+--
+- Define $D_i$ as the treatment (race of civilian), $S_i$ is an indicator for whether a stop occurs, $Y_i$ is severe use of force
+- The difference-in-means does not identify the treatment effect - instead, we get:
+
+$$E[Y_i(1) |  S_i(1) = 1] - E[Y_i(0) | S_i(0) = 1]$$
+--
+
+- Let's think through the bias story. What's the substantive difference between these two sub-groups? Let's assume monotonicity in the effect of $D_i$ on $S_i$
+  - What strata are in the $S_i(1) = 1$ group?: $\{S_i(1) = 1, S_i(0) = 0\}$ and $\{S_i(1) = 1, S_i(0) = 1\}$
+  - What strata are in the $S_i(1) = 0$ group?: $\{S_i(1) = 1, S_i(0) = 1\}$
+---
+
+# Overview
+
+- Take care when conditioning on variables that are affected by treatment!
+- Results in a form of "selection bias" (often called 'collider bias' - we'll explain why with DAGs next week)
+  - The treated group with observed mediator $M_i = 1$ is substantively different from the control group with 
+- We could define valid causal quantities conditional on the principal strata $\{M_i(1), M_i(0)\}$
+  - But we can't observe them directly!
+  - Can (with assumptions) observe them partially - we'll talk more about this in IV.
+- Easy to identify "post-treatment" variables in an experiment. Trickier with poorly-defined interventions.
+  - But be careful with variables that you might be implicitly conditioning on (e.g. analyzing only observed data)
+
+---
+class: title-slide
+
+# Conditional and Joint Treatment Effects
+
+---
+
+# Conditional average treatment effects
+
+- Sometimes we might be interested in treatment effects among different sub-groups in the sample
+  - Effects of treatment are rarely homogeneous: Republicans respond to cues from Trump differently than Democrats!
+  - The ATE is still a well-defined quantity under effect heterogeneity, but we might be explicitly interested in sub-group effects.
+--
+
+- The Conditional Average Treatment Effect (CATE)
+
+  $$\tau(x) =  \underbrace{E[Y_i(1) | X_i = x]}_{\text{Mean P.O. under treatment among units with} X_i = x} -  \underbrace{E[Y_i(0) | X_i = x]}_{\text{Mean P.O. under control among units with} X_i = x}$$
+  
+--
+  
+- Estimate using the standard difference-in-means *within* each sub-group. Conventional inference using the Neyman variance (though be careful on asymptotics when sub-groups are small).
+
+---
+
+# Example: Exercise Experiment
+
+- Again, let's look at our U Chicago exercise experiment! We might be interested in knowing whether 
+the incentives mattered more for undergraduates who never exercised prior to the experiment compared to those who did.
+
+```{r}
+# Difference among Before == 0
+no_prior  <- lm_robust(After ~ I(treatment == "High"), data=exercise2 %>% filter(Before == 0))
+tidy(no_prior) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.error, statistic, p.value)
+
+# Difference among Before != 0
+some_prior <- lm_robust(After ~ I(treatment == "High"), data=exercise2 %>% filter(Before != 0))
+tidy(some_prior) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.error, statistic, p.value)
+
+```
+
+---
+# Example: Exercise Experiment
+
+- Is there a difference between the two groups. Remember that the difference between a statistically significant and a statistically insignificant estimate is **not guaranteed** to be statistically significant.
+- We need to explicitly test for the difference
+
+```{r}
+# Difference among Before == 0
+cate_reg <- lm_robust(After ~ I(treatment == "High")*I(Before != 0), data=exercise2)
+tidy(cate_reg) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.error, statistic, p.value)
+
+```
+
+---
+
+# Careful with subgroup effects
+
+.center[<img src="assets/fraud1.png" alt ="peer_effects", height="550px">]
+
+---
+
+# Beware of p-hacking
+
+.center[<img src="assets/fraud2.png" alt ="peer_effects", height="550px">]
+
+---
+
+# Effect modification v. Interaction
+
+- Differences in CATEs assign no causal interpretation to $X_i$
+  - Comparing the effect of a treatment among college gradautes vs. non-college tells us nothing about what would happen to the effect if we *assigned* college education.
+  - Some $X_i$ may be non-manipulable
+--
+
+- **Effect modification** -- the effect of an intervention varies across stata of a covariate $X_i$
+- **Interaction** -- the effect of an intervention changes when **another** intervention is assigned.
+--
+
+- To think about interactions between treatments, we need to define *joint* potential outcomes
+- Consider two treatments, $D_{1,i}$ and $D_{2,i}$
+  - Define a joint potential outcome $Y_i(d_1, d_2)$.
+  - Under consistency, $Y_i(d_1, d_2) = Y_i$ when $D_{1,i} = d_1$, $D_{2,i} = d_2$
+--
+
+- Treatment effects are defined in terms of differences in joint potential outcomes
+
+$$\tau_{1,2} = E[Y_i(1,1) - Y_i(0,0)] $$
+
+---
+
+# Joint treatment effects
+
+- Lots more causal quantities of interest -- can define an "ATE" for any unique combination of treatments:
+- .maroon[Controlled Direct Effect] -- what's the effect of one treatment fixing the other treatment to a particular level.
+
+$$\text{CDE}_1(1) = E[Y_i(1, 1) - Y_i(0, 1)]$$
+- Differences in CDEs in an experiment correspond to "interactions" -- how does *assigning* one level of treatment influence the effect of another.
+--
+
+- .maroon[Main effect] -- what's the effect of a treatment marginalizing over the distribution of the other treatment
+
+$$\tau_1 = \sum_{d_2 \in \mathcal{D}_2} \underbrace{E[Y_i(1, d_2) - Y_i(0, d_2)]}_{\text{CDE at } d_2}\times\Pr(D_{2,i} = d_2)$$
+- Note that your main (or marginalized) effects depend on the distribution of the other treatment. This can cause external validity issues in large factorial experiments (e.g. conjoints) - See .maroon[de la Cuesta, Egami, Imai (2022)]
+---
+
+# Conclusion
+
+- Three main reasons to care about covariates in an experiment
+  1. **Improve precision**
+  2. **Diagnose our experiment**
+  3. **Examine sub-group effects** (careful to avoid p-hacking)
+--
+
+- Be careful with bad controls
+  - We want to control for **pre-treatment** covariates and don't want to control for **post-treatment** covariates
+  - Conditioning on **post-treatment** quantities breaks randomization
+--
+
+- Next week, we'll look at a fourth -- and most important -- reason for using covariates in *observational* designs: **adjusting for confounding**
+  - Not a problem in experiments since we randomize treatment -- no observed or unobserved confounding
+  - Big problem in observational designs since we don't randomize
+
+---
