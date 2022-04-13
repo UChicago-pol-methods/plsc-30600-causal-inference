@@ -586,20 +586,20 @@ tidy(goal) %>% filter(grepl("treatment", term)) %>% select(term, estimate, std.e
   - Basically always happens in field experiments (in one direction at least)
 --
 
-- Let $D_i$ denote the *assigned* treatment and $S_i$ denote the treatment that is actually taken
-  - $D_i$ is randomized but $S_i$ is not.
-  - What happens when we analyze the difference between units with observed treatment $S_i = 1$ and observed treatment $S_i = 0$
+- Let $Z_i$ denote the *assigned* treatment and $D_i$ denote the treatment that is actually taken
+  - $Z_i$ is randomized but $D_i$ is not.
+  - What happens when we analyze the difference between units with observed treatment $D_i = 1$ and observed treatment $D_i = 0$
   
 --
-- $S_i$ is post-treatment. It has potential outcomes $S_i(d)$. What are those groups?
+- $D_i$ is post-treatment. It has potential outcomes $D_i(z)$. What are those groups?
 
 ---
 
 # Principal strata
 
-- We can think of the combination of $S_i$ and $D_i$ as defining a "sub-group" of units -- these are referred to as "principal strata"
+- We can think of the combination of $Z_i$ and $D_i$ as defining a "sub-group" of units -- these are referred to as "principal strata"
 
-Stratum              | $S_i(1)$          |  $S_i(0)$ | 
+Stratum              | $D_i(1)$          |  $D_i(0)$ | 
 :-------------------:|:-----------------:|:---------:|
 "Always-takers"      |  $1$              |  $1$      |  
 "Never-takers"       |  $0$              |  $0$      |  
@@ -608,8 +608,8 @@ Stratum              | $S_i(1)$          |  $S_i(0)$ |
 
 --
 
-- Units with $S_i = 1$ could be any three of these strata. Even observing $D_i$ narrows it down to only two - we can't observe the strata directly.
-- Strata aren't necessarily independent of potential outcomes $Y_i(d)$ 
+- Units with $D_i = 1$ could be any three of these strata. Even observing $Z_i$ narrows it down to only two - we can't observe the strata directly.
+- Strata aren't necessarily independent of potential outcomes $Y_i(d)$! 
 
 ---
 
