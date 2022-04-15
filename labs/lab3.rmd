@@ -1,0 +1,578 @@
+---
+title: "PLSC 30600 - Lab 3 - Analyzing Experiments"
+author: ''
+date: "4/15/2022"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(estimatr)
+library(ggeffects)
+library(effects)
+```
+
+# Analyzing an experiment: Madsen et. al. (2021)
+
+This lab will have you analyze and present results from an experiment conducted by [Madsen, Mayoral, Strezhnev and Voeten (2021)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3681988) examining attitudes towards international courts among voters in European countries. The experiment presented respondents with a vignette about a hypothetical court case in a European country that was then heard by a European court (the vignette was ambiguous, but one could imagine either the European Court of Justice or the European Court of Human Rights). The study manipulated two treatments: the outcome of the case and whether or not the European court overruled the domestic court. Three outcomes were observed: whether respondents agreed with the decision, whether they thought the decision should be implemented, and whether they supported the continued authority of European courts over domestic courts.  The goal was to evaluate two competing hypotheses of what drives populist opposition to international courts: do they oppose courts because of a concern over national sovereignty (and so would support a domestic court making the same decision) or because of the content of the decisions (e.g. right-wing populists opposing pro-immigration policies). In other words, do controversial judgments get more support if the decision comes from a domestic court rather than from a European one. The experiment allowed the researchers to vary these attributes independently of one another in a hypothetical scenario.
+
+The paper fielded multiple vignettes but here we'll focus on the immigration vignette that was fielded in all five countries in the experiment: Denmark, UK, France, Spain and Poland. In the vignette, respondents were asked to consider a case where the government of their home country was considering deporting a foreigner who was convicted of a crime. The foreigner challenged the deportation in a UK court on the grounds that deportation violated his human rights. Two factors were randomly varied: whether the domestic court ruled in favor of the foreigner or in favor of the government and then whether the European court overruled or agreed with the domestic court. This was therefore a 2x2 "factorial" design with four unique treatment combinations. The UK vignette, for example, stated:
+
+> Suppose that United Kingdom (UK) authorities decided to deport a foreigner who has been convicted of a crime. The foreigner appealed at a UK court that the decision to deport him violated his human rights. The UK court found that the authorities [CAN/CANNOT] deport the foreigner. The question was then brought before a European court, which [AGREED WITH/DISAGREED WITH] the UK court. The final decision is that the foreigner should [REMAIN IN THE UK/BE DEPORTED]. 
+
+We'll estimate the effects of whether the foreigner was deported vs. not deported ("outcome treatment") and the effect of whether the European court deferred to or overruled the domestic court ("deferrence treatment").
+
+Respondents were then asked 3 questions:
+
+1. Do you agree or disagree with the final decision?
+2. Do you agree or disagree that the final decision should be implemented?
+3. Do you agree or disagree that the country should continue to accept the authority of European courts?
+
+All responses were on a 6-level scale (strongly disagree to strongly agree). In the pre-registration the analysis was to be conducted on the dichotomized "agree"/"disagree" outcome, so we'll focus on estimating effects on that indicator, though we'll also look at how to visualize treatment effects with multi-level or continuous outcomes. In practice, pre-registered "scales" combining multiple outcomes are increasingly common in recent experiments as they can be much less noisy than individual questions. Pre-registration avoids the risk of p-hacking and multiple testing in choosing how to create that scale.
+
+Below is the code to read in the data
+
+```{r read data, message=F, warning=F}
+### Read in dataset
+data <- read_csv("Data/final_data.csv")
+```
+
+The analysis pre-registered four covariates that would be used to create strata for covariate adjustment: Age, Gender, Education and Country. For some experiments (the smaller ones run in only two countries), strata omitting age were required because they were otherwise too small and did not contain enough treated or control units.
+
+```{r make strata, message=FALSE, warning=FALSE}
+
+## Make the strata for covariate adjustment
+
+# Four vars: Age, Gender, Education, Country
+
+# Age - bin into categories
+data <- data %>% mutate(ageBin = case_when(QQuotas2 >= 18 & QQuotas2 <= 34 ~ "18-34", 
+                                           QQuotas2 >= 35 & QQuotas2 <= 50 ~ "35-50",
+                                           QQuotas2 >= 51 ~"51+"))
+
+data$age <- data$QQuotas2
+# Gender - just take the response directly
+data$gender <- data$QQuotas1
+
+# Level of education - bin to college/non-college
+data <- data %>% mutate(college = case_when(QQuotas3 == "ISCED 0:  Early childhood education (‘less than primary’ )" ~ "Non-College",
+                                              QQuotas3 == "ISCED 1: Primary education" ~ "Non-College",
+                                              QQuotas3 == "ISCED 2: Lower secondary education" ~ "Non-College",
+                                              QQuotas3 == "ISCED 3: Upper secondary education" ~ "Non-College",
+                                              QQuotas3 == "ISCED 4: Post-secondary non-tertiary education (NOT a University degree)" ~ "Non-College",
+                                              QQuotas3 == "ISCED 5: Short-cycle tertiary education" ~ "College",
+                                              QQuotas3 == "ISCED 6: Bachelor’s or equivalent level" ~ "College",
+                                              QQuotas3 == "ISCED 7: Master’s or equivalent level" ~ "College",
+                                              QQuotas3 == "ISCED 8: Doctoral or equivalent level" ~ "College"))
+
+
+# Generate full-sample stratum bins
+data$stratum <- paste(data$country, data$gender, data$college, data$ageBin, sep="|")
+
+# Generate stratum without age because bins are too small
+data$stratum_noage <- paste(data$country, data$gender, data$college, sep="|")
+
+```
+
+We did a bunch of pre-processing of the raw survey responses from Qualtrics -- mostly just labeling variables and generating the relevant indicators for treatment. You can ignore all of this code - it's just tedious cleaning.
+
+```{r data cleaning, message=FALSE, warning=FALSE}
+
+##Create binary outcome variables
+# Outcome 
+data  <- data  %>% mutate(D1Agree = as.integer(!grepl("disagree", D1, ignore.case=T))) # Final decision
+data  <- data  %>% mutate(D2Agree = as.integer(!grepl("disagree", D2, ignore.case=T))) # Should implement
+data  <- data  %>% mutate(D3Agree = as.integer(!grepl("disagree", D3, ignore.case=T))) # Accept authority
+data  <- data  %>% mutate(D4Agree = as.integer(!grepl("disagree", D4, ignore.case=T))) # Courts shouldn't intervene
+data  <- data  %>% mutate(D5Agree = as.integer(!grepl("disagree", D5, ignore.case=T))) # Sue in domestic court
+data  <- data  %>% mutate(D6Agree = as.integer(!grepl("disagree", D6, ignore.case=T))) # Stop letting IOs tell us what to do
+
+# Fix missing data
+data$D1Agree[is.na(data$D1)] <- NA
+data$D2Agree[is.na(data$D2)] <- NA
+data$D3Agree[is.na(data$D3)] <- NA
+data$D4Agree[is.na(data$D4)] <- NA
+data$D5Agree[is.na(data$D5)] <- NA
+data$D6Agree[is.na(data$D6)] <- NA
+
+# Vector with labels for each outcome - Used for graph labels
+Outcomelabels= c("Agree with decision", "Should implement decision", "Accept authority of European courts","Courts shouldn't intervene", "Sue in domestic court","Stop letting IOs tell us")
+Outcomelabelsshort= c("Agree", "Implement", "Accept authority","Intervene", "Sue domestic","Stop IOs")
+Outcomelabelsprimary= c("Agree with decision", "Should implement decision", "Accept authority of European courts")
+
+Outcomelabelsprimaryshort= c("Agree", "Implement", "Accept authority")
+Outcomelabelssecondary= c("Courts shouldn't intervene", "Sue in domestic court","Stop letting IOs tell us")
+Outcomelabelssecondaryshort= c("Intervene", "Sue domestic","Stop IOs")
+
+# Continuous outcome variables for robustness checks
+### Continuous agree variable
+data <- data %>% mutate(D1AgreeC = case_when(D1 == "Strongly disagree" ~ 1,
+                                                                    D1 == "Disagree" ~ 2,
+                                                                    D1 == "Slightly disagree" ~ 3,
+                                                                    D1 == "Slightly agree" ~ 4,
+                                                                    D1 == "Agree" ~ 5,
+                                                                    D1 == "Strongly agree" ~ 6))
+
+data <- data %>% mutate(D2AgreeC = case_when(D2 == "Strongly disagree" ~ 1,
+                                                                    D2 == "Disagree" ~ 2,
+                                                                    D2 == "Slightly disagree" ~ 3,
+                                                                    D2 == "Slightly agree" ~ 4,
+                                                                    D2 == "Agree" ~ 5,
+                                                                    D2 == "Strongly agree" ~ 6))
+
+data <- data %>% mutate(D3AgreeC = case_when(D3 == "Strongly disagree" ~ 1,
+                                                                    D3 == "Disagree" ~ 2,
+                                                                    D3 == "Slightly disagree" ~ 3,
+                                                                    D3 == "Slightly agree" ~ 4,
+                                                                    D3 == "Agree" ~ 5,
+                                                                    D3 == "Strongly agree" ~ 6))
+
+data <- data %>% mutate(D4AgreeC = case_when(D4 == "Strongly disagree" ~ 1,
+                                                                    D4 == "Disagree" ~ 2,
+                                                                    D4 == "Slightly disagree" ~ 3,
+                                                                    D4 == "Slightly agree" ~ 4,
+                                                                    D4 == "Agree" ~ 5,
+                                                                    D4 == "Strongly agree" ~ 6))
+
+data <- data %>% mutate(D5AgreeC = case_when(D5 == "Strongly disagree" ~ 1,
+                                                                    D5 == "Disagree" ~ 2,
+                                                                    D5 == "Slightly disagree" ~ 3,
+                                                                    D5 == "Slightly agree" ~ 4,
+                                                                    D5 == "Agree" ~ 5,
+                                                                    D5 == "Strongly agree" ~ 6))
+data <- data %>% mutate(D6AgreeC = case_when(D6 == "Strongly disagree" ~ 1,
+                                                                    D6 == "Disagree" ~ 2,
+                                                                    D6 == "Slightly disagree" ~ 3,
+                                                                    D6 == "Slightly agree" ~ 4,
+                                                                    D6 == "Agree" ~ 5,
+                                                                    D6 == "Strongly agree" ~ 6))
+
+
+# Create moderator variables
+data <- data %>% mutate(SatLaw = case_when(QA4 == "Dissatisfied" ~ 0, # Satisfied with the legal system in your country
+                                                                    QA4 == "Very dissatisfied" ~ 0,
+                                                                    QA4 == "Very Satisfied" ~ 1,
+                                                                    QA4 == "Satisfied" ~ 1,
+                                                                    QA4 == "Neither dissatisfied nor satisfied" ~ 0),
+                        trust = case_when(QA1 == "You can't be too careful in dealing with people (1)" ~ 1, # Trust
+                                        QA1 == "(2)" ~ 2,
+                                        QA1 == "(3)" ~ 3,
+                                        QA1 == "(4)" ~ 4,
+                                        QA1 == "(5)" ~ 5,
+                                        QA1 == "(6)" ~ 6,
+                                        QA1 == "Most people can be trusted (7)" ~ 7),
+                      ideology = case_when(QC1 == "Extreme Left (0)" ~ 0, # Political ideology (numerical)
+                                        QC1 == "(1)" ~ 1,
+                                        QC1 == "(2)" ~ 2,
+                                        QC1 == "(3)" ~ 3,
+                                        QC1 == "(4)" ~ 4,
+                                        QC1 == "(5)" ~ 5,
+                                        QC1 == "(6)" ~ 6,
+                                        QC1 == "(7)" ~ 7,
+                                        QC1 == "(8)" ~ 8,
+                                        QC1 == "(9)" ~ 9,
+                                        QC1 == "Extreme right (10)" ~ 10),
+                             National = if_else(QC4 == "British only", 1,0), # National attachment (1 = consider themselves (NATION) only)
+                             Refugee = if_else(QB9 == "To deny legal status to someone who did not misrepresent their situation (e.g. faces a death threat back home)", 0,1), # Refugee attitudes (sympathy w/ applicant)
+                            EvictFair = if_else(QB10 == "To evict people who were treated unfairly by a landlord or mortgage company.", 0,1), # Sympathy to eviction applicant
+                          EvictFair2 = case_when(QB5 == "Strongly agree" ~ 1, # Eviction/fairness (agreement scale)
+                                              QB5 == "Agree" ~ 1,
+                                              QB5 == "Slightly agree" ~ 1,
+                                              QB5 ==  "Slightly disagree" ~ 0,
+                                              QB5 == "Disagree" ~ 0,
+                                              QB5 == "Strongly disagree" ~0),
+                          LGBTNotSameRights = case_when(QB1 == "Strongly agree" ~ 0, # Sympathy towards LGBT group.
+                                              QB1 == "Agree" ~ 0,
+                                              QB1 == "Slightly agree" ~ 0,
+                                              QB1 ==  "Slightly disagree" ~ 1,
+                                              QB1 == "Disagree" ~ 1,
+                                              QB1 == "Strongly disagree" ~ 1),
+                           LGBTRights = case_when(QB1 == "Strongly agree" ~ 6, # LGBT rights
+                                              QB1 == "Agree" ~ 5,
+                                              QB1 == "Slightly agree" ~ 4,
+                                              QB1 ==  "Slightly disagree" ~ 3,
+                                              QB1 == "Disagree" ~ 2,
+                                              QB1 == "Strongly disagree" ~ 1),
+                      IslamSymbol = case_when(QB4 == "Strongly agree" ~ 0, # Sympathy towards applicant (islam/Quran burning)
+                                              QB4 == "Agree" ~ 0,
+                                              QB4 == "Slightly agree" ~ 0,
+                                              QB4 ==  "Slightly disagree" ~ 1,
+                                              QB4 == "Disagree" ~ 1,
+                                              QB4 == "Strongly disagree" ~ 1),
+                                            Immigrants = case_when(QB3 == "Strongly agree" ~ 1, # Attitudes towards immmigration
+                                              QB3 == "Agree" ~ 1,
+                                              QB3 == "Slightly agree" ~ 1,
+                                              QB3 ==  "Slightly disagree" ~ 0,
+                                              QB3 == "Disagree" ~ 0,
+                                              QB3 == "Strongly disagree" ~ 0),
+                             Aut1 = case_when(QC2_1 == "Strongly agree" ~ 0, # Authoritarianism scale - Q1
+                                              QC2_1 == "Agree" ~ 1,
+                                              QC2_1 == "Slightly agree" ~ 2,
+                                              QC2_1 ==  "Slightly disagree" ~ 3,
+                                              QC2_1 == "Disagree" ~ 4,
+                                              QC2_1 == "Strongly disagree" ~5),
+                              Aut2 = case_when(QC2_2 == "Strongly agree" ~ 5, # Authoritarianism scale - Q2
+                                              QC2_2 == "Agree" ~ 4,
+                                              QC2_2 == "Slightly agree" ~ 3,
+                                              QC2_2 ==  "Slightly disagree" ~ 2,
+                                              QC2_2 == "Disagree" ~ 2,
+                                              QC2_2 == "Strongly disagree" ~2),
+                              Aut3 = case_when(QC2_3 == "Strongly agree" ~ 5, # Authoritarianism scale - Q3
+                                              QC2_3 == "Agree" ~ 4,
+                                              QC2_3 == "Slightly agree" ~ 3,
+                                              QC2_3 ==  "Slightly disagree" ~ 2,
+                                              QC2_3 == "Disagree" ~ 1,
+                                              QC2_3 == "Strongly disagree" ~0),
+                              Aut4 = case_when(QC2_4 == "Strongly agree" ~ 0, # Authoritarianism scale - Q4
+                                              QC2_4 == "Agree" ~ 1,
+                                              QC2_4 == "Slightly agree" ~ 2,
+                                              QC2_4 ==  "Slightly disagree" ~ 3,
+                                              QC2_4 == "Disagree" ~ 4,
+                                              QC2_4 == "Strongly disagree" ~5),
+                             Autscale=(Aut1+Aut2+Aut3+Aut4)/20, # Combine the authoritarianism scale questions
+                             Nat1 = case_when(QC2_5 == "Strongly agree" ~ 1, # Nationalism scale - Q1
+                                              QC2_5 == "Agree" ~ .8,
+                                              QC2_5 == "Slightly agree" ~ .6,
+                                              QC2_5 ==  "Slightly disagree" ~ .4,
+                                              QC2_5 == "Disagree" ~ .2,
+                                              QC2_5 == "Strongly disagree" ~0),
+                             Nat2 = case_when(QC2_6 == "Strongly agree" ~ 1,  # Nationalism scale - Q2
+                                              QC2_6 == "Agree" ~ .8,
+                                              QC2_6 == "Slightly agree" ~ .6,
+                                              QC2_6 ==  "Slightly disagree" ~ .4,
+                                              QC2_6 == "Disagree" ~ .2,
+                                              QC2_6 == "Strongly disagree" ~0),
+                              Nat3 = case_when(QC3 == "Very proud" ~ 1, # Nationalism scale - Q3
+                                              QC3 == "Somewhat proud" ~ .75,
+                                              QC3 == "Not very proud" ~ .6,
+                                              QC3 ==  "Not proud at all" ~ .4),
+                                         Natscale = National + Nat1 + Nat2 + Nat3
+                                                   )
+
+# Coarsen authoritarianism and nationalism scales
+data <- data %>% mutate(aut=if_else(Autscale>.5, 1, 0))
+data <- data %>% mutate(nat=if_else(Natscale>1.4, 1, 0))
+
+```
+
+
+```{r, vignette data, message=FALSE, warning=FALSE}
+
+# Definition of vignette
+data <- data %>% mutate(Vignette = case_when(vignette == "immigration" ~ "Deportation",
+                                              vignette == "other"&(country=="uk"|country=="denmark")~ "Quran burning",
+                                             vignette == "other"&(country=="spain"|country=="france") ~ "Eviction",
+                                             vignette == "other"&(country=="poland") ~ "Pride Parade")
+                                             )
+
+# Categorize outcomes 
+data <- data %>% mutate(caseOutcome = case_when(outcome == "can"&judgment=="agree" ~ 0,
+                                                                        outcome == "can"&judgment=="disagree" ~ 1,
+                                                                        outcome == "cannot"&judgment=="disagree" ~ 0,
+                                                                      outcome == "cannot"&judgment=="agree" ~ 1,
+                                                                      outcome == "can"&judgment=="nocourt" ~ 0,
+                                                                      outcome == "cannot"&judgment=="nocourt" ~ 1),
+                        caseOutcome=if_else(Vignette=="Pride Parade", caseOutcome*-1+1, caseOutcome)) ##Recodes the pride parade outcome
+
+data <- data %>% mutate(caseDefer = case_when(judgment == "agree" ~ 1,
+                                              judgment == "disagree" ~ 0,
+                                              TRUE ~ NA_real_))
+
+# Label vignettes by case outcomes
+data <- data %>% mutate(VignetteOutcome = case_when(Vignette == "Quran burning" ~ "Quran burning, no fine",
+                                             Vignette == "Eviction" ~ "Eviction canceled",
+                                             Vignette == "Pride Parade" ~ "Pride parade not banned",
+                                             Vignette == "Deportation" ~ "Deportation prohibited")
+                                             )
+
+
+
+### Six-category treatment
+data <- data %>% mutate(treatmentBlock = case_when(outcome == "can"&judgment=="agree" ~ "Entitled, Upheld",
+                                                                           outcome == "can"&judgment=="disagree" ~ "Entitled, Overturned",
+                                                                           outcome == "cannot"&judgment=="disagree" ~ "Not Entitled, Overturned",
+                                                                           outcome == "cannot"&judgment=="agree" ~ "Not Entitled, Upheld",
+                                                                           outcome == "can"&judgment=="nocourt" ~ "Entitled, No Court",
+                                                                           outcome == "cannot"&judgment=="nocourt" ~ "Not Entitled, No Court"))
+
+### Treatment ordering with numeric labels
+data <- data %>% mutate(treatmentLabel = case_when(treatmentBlock == "Entitled, Upheld" ~ "Applicant loses, EC defers (2)",
+                                                   treatmentBlock == "Entitled, Overturned" ~ "Applicant wins, EC overturns (3)",
+                                                   treatmentBlock == "Not Entitled, Overturned" ~ "Applicant loses, EC overturns (4)",
+                                                   treatmentBlock == "Not Entitled, Upheld" ~ "Applicant wins, EC defers (1)",
+                                                   treatmentBlock == "Entitled, No Court" ~ "Applicant loses, No EC (6)",
+                                                   treatmentBlock == "Not Entitled, No Court" ~ "Applicant wins, No EC (5)"))
+
+
+# Categorize individuals as unsympathetic towards applicant (1 is less sympathetic)
+# This leverages the four sympathy covariates
+data <- data %>% mutate(sympathy = case_when(Vignette == "Deportation" ~ Refugee,
+                                               Vignette == "Quran burning" ~ IslamSymbol,
+                                               Vignette == "Eviction" ~ EvictFair,
+                                               Vignette == "Pride Parade" ~ LGBTNotSameRights))
+
+                        
+# Country labels with caps to look better in graphs
+data$countryLabel <- data$country
+data$countryLabel[data$country == "denmark"] <- "Denmark"
+data$countryLabel[data$country == "uk"] <- "UK"
+data$countryLabel[data$country == "poland"] <- "Poland"
+data$countryLabel[data$country == "france"] <- "France"
+data$countryLabel[data$country == "spain"] <- "Spain"
+
+```
+
+We also wrote a function for the stratified estimator -- literally just taking the difference in means in each sub-group and averaging up to get the point and variance estimates for the ATE. Don't necessarily need to use this function, but can be useful to see the process broken down into parts in the code.
+
+```{r stratification estimator, message=FALSE, warning=FALSE}
+
+# Stratified regression estimator
+strat_reg <- function(formula, data, stratum){
+
+  # Raw counts (use this do diagnostics if things go wrong)
+  counts <- data %>% group_by(stratum) %>% summarize(N=n())
+  
+  # within each level of the data, fit the model in "formula", lm_robust is linear regression with robust standard error
+  stratum_regs <- data %>% group_by(stratum) %>% group_map(~lm_robust(formula=formula, data=.))
+  
+  # get sizes of each stratum
+  sample_sizes <- unlist(lapply(stratum_regs, function(x) x$nobs)) #nobs for most recent version of estimatr - if you're having issues, replace nobs with N (this changed at some point in that package's development)
+  
+  sample_shares <- sample_sizes/sum(sample_sizes)
+
+  # get point estimates
+  point_est <- sapply(stratum_regs, function(x) x$coefficients)
+  
+  if (!is.matrix(point_est)&is.vector(point_est)){
+    point_est <- t(as.matrix(point_est))
+  }
+  # check for NAs
+  if(sum(apply(point_est, 1, function(x) sum(is.na(x)))) > 0){
+    print(counts[apply(point_est, 2, function(x) sum(is.na(x))) != 0,])
+    stop("Error: NAs in stratified point estimates, coarsen strata to obtain enough units in each treatment condition per stratum")
+  }
+
+  var_est <- sapply(stratum_regs, function(x) abs(diag(vcov(x)))) # diagonals must be positive, some numerical issues w/ Variances of 0 (Pr(Y) = 1 or 0)
+
+  if (!is.matrix(var_est)&is.vector(var_est)){
+    var_est <- t(as.matrix(var_est))
+  }
+    # check for NAs
+  if(sum(apply(var_est, 1, function(x) sum(is.na(x)))) > 0){
+    print(counts[apply(var_est, 2, function(x) sum(is.na(x))) != 0,])
+    stop("Error: NAs in stratified variance estimates, coarsen strata to obtain enough units in each treatment condition per stratum")
+  }
+
+
+  point_combined <- apply(point_est, 1, function(x) sum(x*sample_shares))
+  se_combined <- apply(var_est, 1, function(x) sqrt(sum(x*sample_shares^2)))
+
+  # Fix names for 1-length vectors
+  if(length(point_combined) < 2){
+    char_names <- c("(Mean)")
+  }else{
+    char_names <- names(point_combined)
+  }
+  
+  # Save the results
+  out_results <- data.frame(term = as.character(char_names), estimate=point_combined, std.error = se_combined)
+  out_results$statistic <- out_results$estimate/out_results$std.error
+  out_results$conf.low <- out_results$estimate - qnorm(.975)*out_results$std.error
+  out_results$conf.high <- out_results$estimate + qnorm(.975)*out_results$std.error 
+
+  return(out_results)
+}
+
+```
+
+# Estimating the ATEs
+
+Our outcome variables are
+
+- `D1Agree` (Binary agree/disagree with decision)
+- `D2Agree` (Binary agree/disagree with implementing the decision)
+- `D3Agree` (Binary agree/disagree on European courts should have authority)
+
+Our two treatments are
+
+- `caseOutcome` (0 if foreigner deported, 1 if not deported)
+- `caseDefer` (0 if European court overruled domestic, 1 if European court deferred)
+
+We'll subset the data down to the immigration vignette. One last small thing is that the immigration vignette also had some number of observations assigned to a "no court" treatment that omitted any European court involvement -- since the sample size was already large, there was room to include this "placebo" treatment to see if even mentioning a European court affected attitudes. For today we'll ignore that treatment
+
+```{r immigration, message=F, warning=F}
+
+# Only the immigration vignette
+data_immigration <- data %>% filter(vignette == "immigration"&judgment!="nocourt")
+
+# Any missing responses: a tiny proportion of observations are missing
+sum(is.na(data_immigration$D1Agree))
+sum(is.na(data_immigration$D2Agree))
+sum(is.na(data_immigration$D3Agree))
+
+# Negligible missingness (only about 6 obs!) -- not really a problem to drop them - very likely missing at random
+data_immigration <- data_immigration %>% filter(!is.na(D1Agree)&!is.na(D2Agree)&!is.na(D3Agree))
+
+# Summary stats - sample size
+data_immigration %>% group_by(country, caseOutcome, caseDefer) %>% summarize(N=n())
+
+```
+
+Let's estimate the ATE of the case outcome and the deference treatment on support for implementation (D2Agree) (without covariate adjustment)
+
+```{r ate}
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+summary(ate_outcome)
+
+# Court deference treatment (effect of european court agreeing with domestic)
+ate_defer <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_defer)
+
+```
+
+We might be interested in the effect of one treatment holding the other constant. For that, we include both indicators + an interaction (again, still a fully-saturated model, so it's still just differences in means, but we have 4 means instead of two).
+
+```{r cde}
+# Outcome treatment (effect of immigrant "remaining" in country)
+joint_model <- lm_robust(D2Agree ~ caseOutcome + caseDefer + caseOutcome*caseDefer, data=data_immigration)
+summary(joint_model)
+
+```
+
+How do we interpret the baseline and interaction terms -- what particular effect does the lower-order coefficient on correspond to (and why is it not the ATE)? How do we interpret the interaction term? What do we conclude about whether court deference moderates the effect of the case outcome treatment?
+
+```{r cde 2}
+# Great trick if you want a different interpretation for the lower order terms - just re-level the thing you're interacting with.
+joint_model_2 <- lm_robust(D2Agree ~ caseOutcome + I(1-caseDefer) + caseOutcome*I(1-caseDefer), data=data_immigration)
+summary(joint_model_2)
+```
+
+What if we were to look for heterogeneity in the effect of remain vs. deport by country?
+
+```{r country}
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome_country <- lm_robust(D2Agree ~ caseOutcome + country + caseOutcome*country, data=data_immigration)
+summary(ate_outcome_country)
+```
+What's the interpretation of the lower order coefficient on caseOutcome? Which of the five countries is "left out"? How would we get the effect for Spain?
+
+```{r country 2}
+# Easiest trick is to "re-level" the country factor in R
+data_immigration$country2 <- as.factor(data_immigration$country)
+data_immigration$country2 <- relevel(data_immigration$country2, "spain")
+
+ate_outcome_country2 <- lm_robust(D2Agree ~ caseOutcome + country2 + caseOutcome*country2, data=data_immigration)
+summary(ate_outcome_country2)
+
+```
+
+
+# Adjusting for covariates
+
+Let's compare the covariate-adjusted to the non-covariate adjusted estimates. First, using our strata
+
+```{r}
+## Unadjusted
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+summary(ate_outcome)
+
+## Adjusted
+ate_outcome_adj <- strat_reg(D2Agree ~ caseOutcome, data=data_immigration, stratum=data_immigration$stratum)
+ate_outcome_adj
+
+## Lin estimator is the same!
+ate_outcome_lin <- lm_lin(D2Agree ~ caseOutcome, covariates = ~stratum, data=data_immigration)
+tidy(ate_outcome_lin) %>% filter(term == "caseOutcome")
+
+# Court deference treatment (effect of european court agreeing with domestic)
+ate_defer <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_defer)
+
+ate_defer_adj <- strat_reg(D2Agree ~ caseDefer, data=data_immigration, stratum=data_immigration$stratum)
+ate_defer_adj
+
+```
+
+Our strata didn't really do that much. This is probably because the covariates didn't really explain the outcome particularly well and at the sample sizes in this experiment (approximately 5k for the immigration study), additional marginal improvements in variance are hard to get without **very** predictive covariates.
+
+```{r}
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_outcome)
+
+# Basically same results with an additive model instead of a fully interacted one (strata)
+ate_outcome_adjusted <- lm_lin(D2Agree ~ caseDefer, covariates = ~ age + college + country + gender, data=data_immigration)
+summary(ate_outcome_adjusted)
+
+```
+
+
+# Visualizing the results
+
+Coppock (2020) has an excellent guide, ["Visualize as you Randomize"](https://alexandercoppock.com/coppock_2020.pdf) on constructing visualizations from experiments, using the underlying design to guide graphics choices. One principle is that a good visualization should give a sense of both the underlying data and the experimental design. For example, if we wanted to visualize the ATE, we could present estimates for the means of the treated and the control groups -- but we might also want to use a plot of the raw observations to give a sense of the sizes of both the treated and the control groups
+
+We'll first want to get the marginal means from the `lm_robust` fit (average under control, average under treated). You can do this manually from the components of `lm_robust` itself -- the mean for control is just $\beta_0$, the mean for treated is $\beta_1 + \beta_0$ and you can calculate the SE for that sum using the variance-covariance matrix. However, this gets tedious with lots of levels and luckily there are packages that will calculate *marginal means* for you -- `ggeffects` is a good one (and was imported above)
+
+```{r, fig.width=4, fig.height=5}
+# Plot the marginal means and the data
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+ate_margins <- ggeffects::ggeffect(ate_outcome, terms = "caseOutcome")
+ate_margins <- as_tibble(ate_margins)
+
+# First let's plot the raw data -- add a jitter since it's binary, then add the margins
+# And add transparency (alpha) 
+data_immigration %>% ggplot(aes(x=caseOutcome, y=D2Agree)) + geom_point(position = position_jitter(height=.1, width=.1),
+                                                                        shape = 16,
+                                                                        alpha=.01) + 
+  geom_pointrange(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high), data=ate_margins, size=.2) +
+  theme_bw() +
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+# Compare to just plotting marginal means
+ate_margins %>% ggplot() + geom_pointrange(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() +
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+```
+
+We can compare plotting on top of the raw data with just plotting the marginal means -- some advantages and disadvantages to both -- for example, it's hard to see the confidence intervals with the x-axis scaled from 0 to 1 since we have very high precision, but we do get a clearer sense of the magnitude of the effect. Zooming in makes it easier to see the CIs but narrows the X-axis. 
+
+How about the joint treatment effects? Let's plot them using faceting
+
+```{r, fig.width=5, fig.height=6}
+# Plot the marginal means and the data
+joint_effect <- lm_robust(D2Agree ~ caseOutcome*caseDefer, data=data_immigration)
+joint_margins <- ggeffects::ggeffect(joint_effect, c("caseOutcome","caseDefer"))
+joint_margins
+
+# Make into a table
+joint_margins_tbl <- as_tibble(joint_margins)
+joint_margins_tbl <- joint_margins_tbl %>% mutate(caseOutcome = x) %>% mutate(caseDefer = as.numeric(group)-1) # Rename variables
+
+# Let's make a "labeler"
+outcome_names = c(`0` = "Outcome: Deported",
+                  `1` = "Outcome: Remain")
+
+defer_names = c(`0` = "European court: Overrules",
+                `1` = "European court: Defers")
+
+# Which do we facet on?
+joint_margins_tbl %>% ggplot() + geom_pointrange(aes(x=caseOutcome, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() + facet_wrap(~caseDefer, labeller = as_labeller(defer_names)) + 
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+joint_margins_tbl %>% ggplot() + geom_pointrange(aes(x=caseDefer, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() + facet_wrap(~caseOutcome, labeller = as_labeller(outcome_names)) + 
+  scale_x_continuous("European court decision",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Overrule", "Defer")) + ylab("Agree with implementation")
+
+```
+
+Compare the two figures above -- they display the same information, but what does each figure focus on? Which conditional ATEs does the first emphasize vs. the second?
+
+# Challenge
+
+Visualize the ATEs on the 6-point approval scale `D2AgreeC` instead of the binary indicator -- plot the marginal means on top of the raw data (use jitter). What do you find?
