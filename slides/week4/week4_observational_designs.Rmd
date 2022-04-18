@@ -1,0 +1,356 @@
+---
+title: "Week 4: Observational Designs"
+subtitle: "PLSC 30600 - Causal Inference"
+# author: "Anton Strezhnev"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [default, uchicago_pol_meth.css]
+    nature:
+      highlightLines: true
+      ratio: '16:9'
+  
+---
+
+# Last two weeks
+
+  - Identification under **ignorability**
+    - Treatment assignment is independent of the potential outcomes
+  - Randomized experiments guarantee ignorability
+    - Randomization ensures that treatment is independent of **observed** and **unobserved** confounders.
+  - How to use covariates in experiments
+    - Improve precision for estimating the ATE
+    - Subgroup effects
+
+---
+
+# This week
+
+  - What happens when **ignorability** does not hold?
+    - Treatment is not randomly assigned - we have an *observational* design.
+    - Treatment assignment may be driven by 
+  - Selection-on-observables assumptions
+    - Treatment is ignorable **conditional** on observed covariates
+  - Estimation under selection-on-observables
+    - Stratification
+    - Inverse Propensity of Treatment Weighting
+    - Regression adjustment
+    - Matching
+
+---
+
+class: title-slide
+
+# Selection-on-observables
+$$
+  \require{cancel}
+$$
+
+---
+
+# Why experiments worked
+```{r, echo=F, warning=F, message=F}
+library(tidyverse)
+library(haven)
+library(estimatr)
+```
+  - A good causal observational study should try to mimic the features of an experiment
+  - So what were the nice properties of a **randomized experiment**?
+    - **Positivity**: Assignment not deterministic $0 < P(D_i = 1) < 1$
+    - **Ignorability/Unconfoundedness**: $P(D_i = 1 | Y_i(1), Y_i(0) = P(D_i = 1)$
+--
+  - We liked experiments because we could ensure treatment was independent of the potential outcomes.
+    - $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i$
+--
+  - Even in a **conditionally** randomized experiment, we knew $P(D_i = 1 | \mathbf{X}_i)$
+---
+
+# Observational designs
+
+  - Complete **unconfoundedness** is only one kind of design assumption, but there are many settings where it won't hold.
+  - Suppose we didn't randomize an intervention but simply observe its occurrence
+    - $P(D_i = 1)$ is not known.
+    - Treatment and control groups might not be comparable. Why? -- confounders!
+--
+  - Alternative design: **selection-on-observables**
+    - Treatment assignment is ignorable **conditional** on a set of **observed** covariates $\mathbf{X}_i$
+--
+  - Assumptions:
+    - **Positivity**/**Overlap**: $0 < P(D_i = 1 | \mathbf{X}_i) < 1$
+    - **Conditional ignorability**: $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i | \mathbf{X}_i$
+      - Other names: "No unmeasured confounders", "selection on observables", "no omitted variables",
+      "conditional exogeneity", "condtiional exchangeability", etc...
+    
+---
+
+# Approximating experiments
+
+  - A well-designed observational study will try to approximate some hypothetical "target" experiment (Rubin, 2008; Hernán and Robins, 2016).
+    - Well-defined intervention
+    - Clear distinction between treatment and pre-treatment covariates
+--
+  - You should try to answer the following questions: 
+    - What's the intervention of interest?
+    - What is the assignment process for the intervention?
+    - How well does our adjustment model this assignment process?
+--
+  - What kind of experiment are we mimicking with a **selection-on-observables** identification strategy
+    - *Conditional* randomization (given $\mathbf{X}_i$).
+    - Treatment probability is not constant across levels of $\mathbf{X}_i$.
+  - **Problem**: In an experiment we're guaranteed balance on the unobservables (by randomization). In a selection-on-observables design we are
+  assuming these unobservables away!
+  
+---
+
+# Identification of the ATE
+
+  - Recall that under conditional ignorability, $\{Y_i(1), Y_i(0)\} \cancel{{\perp \! \! \! \perp}} D_i$
+  - Therefore: 
+  
+$$E[Y_i(1) | D_i = 1] \neq E[Y_i(1)]$$
+
+--
+  - So the difference in means alone will not identify the ATE -- we need to **condition** on the covariates $\mathbf{X}_i$
+  
+---
+
+# Identification of the ATE
+
+- Iterated expectations
+
+$$E_X\bigg[E[Y_i | D_i = 1, \mathbf{X}_i = x]\bigg] - E_X\bigg[E[Y_i | D_i = 0, \mathbf{X}_i = x]\bigg]$$
+
+--
+
+- Consistency: 
+
+$$E_X\bigg[E[Y_i(1) | D_i = 1, \mathbf{X}_i = x]\bigg] - E_X\bigg[E[Y_i(0) | D_i = 0, \mathbf{X}_i = x]\bigg]$$
+
+--
+
+- Conditional ignorability:
+
+$$E_X\bigg[E[Y_i(1) | \mathbf{X}_i = x]\bigg] - E_X\bigg[E[Y_i(0) | \mathbf{X}_i = x]\bigg]$$
+
+--
+
+- Law of iterated expectations
+
+$$E[Y_i(1)] - E[Y_i(0)] = \tau$$
+
+---
+
+# Identification vs Estimation
+
+- With infinite data, it would be possible to simply plug in sample analogues for $E[Y_i | D_i = 1, X_i = x]$ for each unique value of $x$ (as long as positivity holds).
+--
+
+- But as the dimensionality of $\mathbf{X}_i$ grows large, within our sample this might be impossible (few to no observations for any given $\mathbf{X}_i$ )
+--
+
+  - We'll make **additional** assumptions to address this problem as part of *estimating* these conditional expectations and consider different estimation strategies with different assumptions
+  - But it's important not to confuse these assumptions (e.g. linearity in a regression model) with the *identification* assumptions needed to even get a causal quantity from the observed data.
+--
+
+- **Identification** assumptions
+  - What do we need to assume is true about the world in order to get **any** causal quantity from the observed data?
+  - In selection-on-observables designs: Treatment is independent of the potential outcomes conditional on observed covariates.
+--
+
+- **Estimation** assumptions
+  - What do we need to assume in order to get a decent estimator of the treatment effect?
+  - If these assumptions are wrong, might introduce additional bias **even if** ignorability holds
+  - This is where fancy stats can help us!
+
+---
+
+# Adjustment via stratification
+
+- If our $\mathbf{X}_i$ are sufficiently low-dimensional, we don't really need any strong modeling assumptions to estimate the ATE. We can use our usual stratification/sub-classification estimator:
+
+$$\hat{\tau} = \sum_{x \in \mathcal{X}} \hat{\tau(x)} \widehat{P}(\mathbf{X}_i = x)$$
+
+where
+
+$$\hat{\tau(x)} = \widehat{E}[Y_i | D_i = 1, X_i = x] - \widehat{E}[Y_i | D_i = 0, X_i = x]$$
+
+--
+
+- What happens if $\mathbf{X}_i$ is high-dimensional? **Coarsen** into bins: 
+  - Fewer bins = more (potential) bias.
+
+---
+
+# Example: Washington (2008)
+
+  - Washington (2008; AER) examines whether having daughters affects a legislator's voting behavior on feminist/pro-women issues (measured by AAUW voting scores)
+--
+
+  - Let's use the data to estimate the effect of having any daughters vs. having $0$ daughters
+--
+
+  - What's the unadjusted estimate?
+
+```{r}
+washington <- read_dta("assets/washington.dta")
+lm_robust(aauw ~ I(ngirls > 0), data=washington)
+```
+
+---
+
+# Example: Washington (2008)
+
+  - What's the confounder?
+--
+
+  - Number of children!
+```{r}
+# Number of girls by total number of children
+table(washington$ngirls, washington$totchi)
+
+# Association between total number of children and AAUW score
+lm_robust(aauw ~ totchi, data=washington)
+```
+
+
+---
+
+# Example: Washington (2008)
+
+  - Identification strategy: **selection-on-observables**
+    - Conditional on the **total number of children**, the number of girls is assigned *as-if-random*
+--
+  - For which strata can we not identify a treatment effect?
+    - Legislators with $0$ children! Positivity/overlap violation. By definition a legislator w/ $0$ children can't have more than $0$ girls
+--
+  - Other strata are just very sparse (4+ children).
+    - Let's estimate the "any child" effect for legislators with 1 to 3 children, stratifying on the total amount.
+    - Note that we've changed the target population here as well as introduced a confounder.
+    
+---
+
+# Example: Washington (2008)
+
+```{r}
+# Unadjusted
+washington_unadjusted <- lm_robust(aauw ~ I(ngirls > 0), data=washington %>% filter(totchi>0&totchi<4))
+tidy(washington_unadjusted) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
+
+# Adjusted
+washington_strat <- lm_lin(aauw ~ I(ngirls > 0), covariates = ~ as.factor(totchi), data=washington %>% filter(totchi>0&totchi<4))
+tidy(washington_strat) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
+
+```
+
+---
+
+# Example: Washington (2008)
+
+- We might still include other covariates to improve precision even if we don't think that they're part of the confounding story.
+  - E.g. We might think that controlling for total number of children is enough to break the relationship between party and number of girls, but party is still really predictive of AAUW voting score.
+
+--
+
+```{r}
+# Adjusted + Party
+washington_strat <- lm_lin(aauw ~ I(ngirls > 0), covariates = ~ as.factor(totchi)*as.factor(repub), data=washington %>% filter(totchi>0&totchi<4))
+tidy(washington_strat) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
+
+```
+
+---
+
+# Confounding and the direction of the bias
+
+.center[<img src="assets/opera.png" alt = "opera", height="200px">]
+.center[<img src="assets/redwine.png" alt = "redwine", height="200px">]
+
+---
+
+# Omitted Variable Bias
+
+- Suppose there exists an omitted confounder $U_i$ and ignorability holds conditional on it. Suppose we ignore it and just use a simple difference-in-means estimator.
+- What's the bias for the ATT? Recall our selection-into-treatment bias formula!
+
+$$\underbrace{E[Y_i | D_i = 1] - E[Y_i | D_i = 0]}_{\text{Difference-in-means}} = \underbrace{E[Y_i(1) - Y_i(0) | D_i = 1]}_{\text{ATT}} + \bigg(\underbrace{E[Y_i(0) | D_i = 1] - E[Y_i(0) | D_i = 0]}_{\text{Selection-into-treatment bias}}\bigg)$$
+
+---
+
+# Omitted Variable Bias
+
+- Let's write the selection bias conditioning on $U_i$
+
+$$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0) | D_i = 1, U_i = u] Pr(U_i = u | D_i = 1) - \sum_{u \in \mathcal{U}} E[Y_i(0) | D_i = 0, U_i = u] Pr(U_i = u | D_i = 0)$$
+
+--
+
+- Ignorability conditional on $U_i$
+
+$$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0) |  U_i = u] Pr(U_i = u | D_i = 1) - \sum_{u \in \mathcal{U}} E[Y_i(0) | U_i = u] Pr(U_i = u | D_i = 0)$$
+
+--
+
+- Combining terms
+
+$$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0) |  U_i = u] \times \bigg(Pr(U_i = u | D_i = 1) -  Pr(U_i = u | D_i = 0)\bigg)$$
+
+---
+
+# Omitted Variable Bias
+
+- Two elements to selection bias. First, if treatment assignment is independent of the confounder, then the bias is 0
+
+$$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0) |  U_i = u] \times \bigg(Pr(U_i = u | D_i = 1) -  Pr(U_i = u | D_i = 0)\bigg)$$
+
+--
+
+- Second, if $Y_i(0)$ is independent of $U_i$, we have:
+
+$$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0)] \times \bigg(Pr(U_i = u | D_i = 1) -  Pr(U_i = u | D_i = 0)\bigg)\\
+\text{Selection Bias} = E[Y_i(0)] \times \bigg(\sum_{u \in \mathcal{U}}Pr(U_i = u | D_i = 1) -  \sum_{u \in \mathcal{U}} Pr(U_i = u | D_i = 0)\bigg)\\
+\text{Selection Bias} = E[Y_i(0)] \times \bigg(1 -  1\bigg) = 0$$
+
+--
+
+- We get OVB/confounding when:
+  1. $U_i$ is not independent of treatment
+  2. $U_i$ is not independent of the potential outcomes
+
+---
+
+# Signing the bias
+
+- Additionally, the bias is multiplicative. 
+- Under some constant effects assumptions, we can get the direction of the bias of the difference-in-means relative to the ATT
+  1. .blue[**Positive**] association between the confounder on outcome. .blue[**Positive**] association between confounder and treatment. .blue[**Positive**] bias.
+  2. .blue[**Positive**] association between the confounder on outcome. .red[**Negative**] association between confounder and treatment. .red[**Negative**] bias.
+  3. .red[**Negative**] association between the confounder on outcome. .blue[**Positive**] association between confounder and treatment. .red[**Negative**] bias.
+  4. .red[**Negative**] association between the confounder on outcome. .red[**Negative**] association between confounder and treatment. .blue[**Positive**] bias.
+    
+---
+
+
+# Example: Smoking and Cancer
+
+- Back when the link between smoking and cancer was being debated, some researchers suggested that cigarettes might be a "healthy" alternative to pipe smoking
+- Cochran (1968) uses this to illustrate adjustment by stratification
+
+.center[<img src="assets/cochran.png" alt = "cochran", height="250px">]
+
+1. What's the omitted confounder?
+2. What's the direction of the bias due to the omitted confounder?
+
+---
+
+class: title-slide
+
+# Directed Acyclic Graphs
+$$
+  \require{cancel}
+$$
+
+---
+
+
+
+
