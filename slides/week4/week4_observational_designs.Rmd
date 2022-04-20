@@ -613,7 +613,7 @@ boot_se
 c(iptw_est - qnorm(.975)*boot_se, iptw_est + qnorm(.975)*boot_se)
 
 # Percentile interval
-quantile(boot_iptw - iptw_est, c(.025, .975))
+quantile(boot_iptw, c(.025, .975))
 
 ```
 
@@ -681,7 +681,7 @@ $$
 
 
 .pull-left[
-```{tikz, dag 2, echo=F, fig.align='center'}
+```{tikz, dag2, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
@@ -697,7 +697,7 @@ $$
 .pull-right[ 
 - Chain: $X \rightarrow D \rightarrow Y$
 - Fork: $D \leftarrow X \rightarrow Y$
-- .maroon[Collider]: $X \rightarrow Y \leftarrow Y$
+- .maroon[Collider]: $X \rightarrow Y \leftarrow X$
 
 ]
 
@@ -715,7 +715,7 @@ $$
 # Directed Acyclic Graphs
 
 .pull-left[
-```{tikz, dag 3, echo=F, fig.align='center'}
+```{tikz, dag3, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
@@ -795,7 +795,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 
 # D-separation
 
-```{tikz, d-separation 2, echo=F, fig.align='center'}
+```{tikz, d-separation2, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node[circle, draw] (x1) at (0,0) {$X_1$};
@@ -825,7 +825,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 
 # D-separation
 
-```{tikz, d-separation 3, echo=F, fig.align='center'}
+```{tikz, d-separation3, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node[circle, draw]  (x1) at (0,0) {$X_1$};
@@ -899,7 +899,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 # Good controls
 
 
-```{tikz, good control, echo=F, fig.align='center'}
+```{tikz, goodcontrol, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
@@ -919,7 +919,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 # Bad controls
 
 
-```{tikz, bad control, echo=F, fig.align='center'}
+```{tikz, badcontrol, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
@@ -942,7 +942,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 # Bad controls
 
 
-```{tikz, m bias, echo=F, fig.align='center'}
+```{tikz, mbias, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
@@ -965,7 +965,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 # Neutral Controls
 
 
-```{tikz, neutral control, echo=F, fig.align='center'}
+```{tikz, neutralcontrol, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
 \node (d) at (0,0) {$D$};
