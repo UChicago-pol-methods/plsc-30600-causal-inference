@@ -353,6 +353,7 @@ class: title-slide
 - With low dimensional $\mathbf{X}$ we can use a stratified difference-in-means estimator. But with high-dimensional $\mathbf{X}$ we run into problems
   - The **curse of dimensionality**!
 --
+
 - Can we adjust for a single scalar quantity regardless of how high-dimensional $\mathbf{X}$ is?
   - Yes: The **propensity score**
   
@@ -364,8 +365,12 @@ $$e(X_i) = P(D_i = 1 | X_i)$$
 $$D_i {\perp \! \! \! \perp} X_i | e(X_i)$$
 
 --
+
 - Therefore, conditioning on the propensity score suffices to adjust for confounding due to $X$
-  - The propensity score is a type of **balancing score** in that conditioning on it breaks the relationship between the covariates and treatment.
+
+$$\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i | e(X_i)$$
+
+- The propensity score is a type of **balancing score** in that conditioning on it breaks the relationship between the covariates and treatment.
   
   
 ---
