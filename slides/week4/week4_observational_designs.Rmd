@@ -344,6 +344,280 @@ $$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0)] \times \bigg(Pr(U_i
 
 class: title-slide
 
+# Propensity scores
+
+
+---
+# Propensity scores
+
+- With low dimensional $\mathbf{X}$ we can use a stratified difference-in-means estimator. But with high-dimensional $\mathbf{X}$ we run into problems
+  - The **curse of dimensionality**!
+--
+- Can we adjust for a single scalar quantity regardless of how high-dimensional $\mathbf{X}$ is?
+  - Yes: The **propensity score**
+  
+$$e(X_i) = P(D_i = 1 | X_i)$$
+
+--
+- Rosenbaum and Rubin (1983) show that conditional on the propensity score, the treatment is independent of the covariates.
+
+$$D_i {\perp \! \! \! \perp} X_i | e(X_i)$$
+
+--
+- Therefore, conditioning on the propensity score suffices to adjust for confounding due to $X$
+  - The propensity score is a type of **balancing score** in that conditioning on it breaks the relationship between the covariates and treatment.
+  
+  
+---
+
+
+# Weighting estimators
+
+- One way of adjusting for the propensity score is to use it as a **weight** on each observation.
+- We weight each unit by the **inverse** propensity of it receiving its particular treatment
+  - Treated units receive a weight $\frac{1}{e(X_i)}$
+  - Control units receive a weight $\frac{1}{1 - e(X_i)}$
+--
+
+- This yields the Horvitz-Thompson estimator for the ATE (with known weights)
+
+$$\hat{\tau} = \frac{1}{n}\sum_{i=1}^n\ \frac{D_i Y_i}{e(X_i)}  - \frac{(1-D_i)Y_i}{1 - e(X_i)}$$
+--
+
+- **Intuition**: Weighting constructs a "pseudo-population" where the link between treatment and the observed covariates is broken
+  - Which treated units get more weight? Those whose treatment status is counter to what we would predict from the propensity score.
+  - Downweight the "overrepresented" and upweight the "underrepresented" 
+
+---
+
+# Why weighting works
+
+- By iterated expectations
+
+$$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E\bigg[E\left[\frac{D_i Y_i}{e(X_i)} \bigg| X_i \right]\bigg]$$
+--
+
+- Consistency
+
+$$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E\bigg[\frac{E[D_i Y_i(1) | X_i]}{e(X_i)} \bigg]$$
+--
+
+- Conditional ignorability
+
+$$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E\bigg[\frac{E[D_i |X_i] E[Y_i(1) | X_i]}{e(X_i)} \bigg]$$
+
+---
+
+# Why weighting works
+
+- Definition of the propensity score
+
+$$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E\bigg[\frac{e(X_i) E[Y_i(1) | X_i]}{e(X_i)} \bigg]$$
+--
+
+- Iterated expectations
+
+$$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E[Y_i(1)]$$
+
+
+---
+
+
+# Estimating the propensity score
+
+- Outside of an experiment, we don't actually know the propensity score
+  - Even if we knew the propensity score, we get more efficient estimators by adjusting for the estimated propensity score (Hirano, Imbens and Ridder, 2003)
+- How do we estimate it? 
+--
+
+- When we can't just stratify, we'll often assume a parametric *model* for $P(D_i = 1 | X)$.    
+  - We could potentially just use OLS, but we need a model to make *predictions* of the propensity score. OLS w/ a binary outcome may give predictions above $1$ or below $0$ (especially when the model is not fully saturated)
+--
+
+- One common generalized linear model is the **logit**, which assumes that the log-odds of the propensity score is a linear function of the parameters 
+
+$$\text{log}\bigg(\frac{e(x)}{1-e(x)}\bigg) = \beta_0 + \beta_1x_1 + \beta_2x_2 + \beta_3x_3 + \dotsc$$
+
+- Estimate the parameters ( $\hat{\beta}$ ) via maximum likelihood and obtain a predicted probability for each observation $\widehat{e(X_i)}$
+
+--
+- **Warning**: Model misspecification for the propensity score can really ruin the performance of propensity score estimators (Kang and Schafer, 2007)
+  - But how do we know if we got the model right?
+  - More "robust" methods for estimating a balancing score aim at getting **exact** balance on the covariates (CBPS: Imai and Ratkovic, 2013)
+
+---
+
+# Normalizing the propensity score
+
+- Horvitz-Thompson behaves especially poorly when propensity scores are close to $0$ and $1$ 
+
+$$\hat{\tau} = \frac{1}{n}\sum_{i=1}^n\ \frac{D_i Y_i}{\widehat{e(X_i)}}  - \frac{(1-D_i)Y_i}{1 - \widehat{e(X_i)}}$$
+
+--
+
+- Common practice is to normalize the weights within the treated and control groups to sum to $1$, which gives us the Hajek estimator
+
+$$\hat{\tau} = \frac{1}{\sum_{i=1}^n \frac{D_i}{\widehat{e(X_i)}}} \sum_{i=1}^n\ \frac{D_i Y_i}{\widehat{e(X_i)}} - \frac{1}{\sum_{i=1}^n \frac{1-D_i}{\widehat{1-e(X_i)}}} \sum_{i=1}^n\ \frac{(1-D_i) Y_i}{1-\widehat{e(X_i)}}$$
+
+- Weighted least squares will do this if we regress outcome on a binary indicator for treatment and supply the inverse propensity weights.
+
+---
+
+# Inference
+
+- We want to estimate the sampling variance $\text{Var}(\hat{\tau})$ in order to do inference
+  - Can't just use the regression standard error -- need to take into account uncertainty when estimating the propensity scores.
+- Two options
+  1. Closed form "sandwich" variance estimator $\widehat{\text{Var}(\hat{\tau})}$ using M-estimation theory given the moment conditions from the propensity score model and the weighting estimator.
+  2. Nonparametric bootstrap to estimate $\widehat{\text{Var}(\hat{\tau})}$ via re-sampling.
+
+---
+
+# Bootstrapping
+
+- Bootstrapping is a useful tool for learning about the sampling distribution of a parameter when we don't want to use theory to figure out $\widehat{\text{Var}(\hat{\tau})}$
+  - Doesn't *always* work -- need a relatively well-behaved estimator that is smooth w.r.t. the data.
+--
+
+- **Intuition**: What drives uncertainty in $\hat{\tau}$? If we took another sample, we would calculate a different value.
+  - We can't go and re-draw a sample from the population again (that's just a hypothetical).
+  - But our sample is a pretty good approximation for the population...and we can resample from that. 
+  - So we can approximate the distribution of $\hat{\tau}$ under repeated draws from the population by taking repeated draws from the empirical distribution of the data in the sample.
+--
+
+- Under i.i.d. observations, we'll often use the "nonparametric" bootstrap in which we resample observations **with** replacement
+
+---
+
+# The bootstrap
+
+- The bootstrap procedure for IPTW:
+  1. Draw a sample of the data  by resampling observations (the rows of the data $\{Y_i, D_i, X_i\}$) **with replacement**
+  2. Using the bootstrapped sample, estimate the propensity scores $\hat{e(X_i)}$.
+  3. Using those propensity scores and the bootstrapped sample, compute an estimate of the average treatment effect $\hat{\tau}$. Store that estimate
+  4. Repeat for many iterations.
+--
+
+- At the end, we have a bunch of draws that allow us to approximate the sampling distribution of $\hat{\tau}$. We can compute the standard deviation to get our estimate of the standard error of $\hat{\tau}$ and create confidence intervals under large-sample theory (normality). Alternatively, we can use percentiles of the bootstrap distribution to construct our confidence intervals.
+
+
+---
+
+# Illustration: Washington (2008)
+
+- Let's suppose we want to adjust for total number of children and party in the Washington (2008) study using IPTW.
+
+```{r}
+# Subset to totchi > 0 and totchi < 4
+wash_subset <- washington %>% filter(totchi>0&totchi<4)
+
+# Fit a propensity score model
+pscore_model <- glm(anygirls ~ as.factor(totchi) + as.factor(party) + 
+                as.factor(totchi)*as.factor(party), data=wash_subset,
+              family=binomial(link="logit"))
+
+# Predict the propensity score
+wash_subset$e <- predict(pscore_model, type="response")
+
+# Generate the weights
+wash_subset$iptw_weight <-1/wash_subset$e
+wash_subset$iptw_weight[wash_subset$anygirls == 0] <- 1/(1-wash_subset$e[wash_subset$anygirls == 0])
+
+
+```
+
+
+
+---
+
+# Illustration: Washington (2008)
+
+- Histogram of the weights
+
+```{r, echo=F, fig.align="center", fig.width=8, fig.height=6}
+wash_subset %>% ggplot(aes(x=iptw_weight)) + geom_histogram(bins=30) + facet_wrap(~anygirls)
+```
+
+
+
+---
+
+
+# Illustration: Washington (2008)
+
+- Calculate IPTW estimate of the ATE
+
+```{r}
+
+# Weighted regression
+iptw_model <- lm_robust(aauw ~ anygirls, data=wash_subset, weights=iptw_weight)
+coef(iptw_model)[2] # Ignore the SE
+
+# Weighted regression gives the Hajek (normalized weights) estimator
+iptw_est <- weighted.mean(wash_subset$aauw[wash_subset$anygirls == 1], wash_subset$iptw_weight[wash_subset$anygirls == 1]) -
+  weighted.mean(wash_subset$aauw[wash_subset$anygirls == 0], wash_subset$iptw_weight[wash_subset$anygirls == 0])
+iptw_est
+```
+
+
+
+---
+
+# Illustration: Washington (2008)
+
+- Bootstrap
+
+```{r}
+set.seed(60638)
+nIter <- 1000
+boot_iptw <- rep(NA,nIter)
+for (i in 1:nIter){
+  wash_subset_boot <- wash_subset[sample(1:nrow(wash_subset), size = nrow(wash_subset), replace=T),]
+   # Fit a propensity score model
+  pscore_model_boot <- glm(anygirls ~ as.factor(totchi) + as.factor(party) + 
+                  as.factor(totchi)*as.factor(party), data=wash_subset_boot,
+                family=binomial(link="logit"))
+  
+  # Predict the propensity score
+  wash_subset_boot$e_boot <- predict(pscore_model_boot, type="response")
+  
+  # Generate the weights
+  wash_subset_boot$iptw_weight_boot <-1/wash_subset_boot$e_boot
+  wash_subset_boot$iptw_weight_boot[wash_subset_boot$anygirls == 0] <- 1/(1-wash_subset_boot$e_boot[wash_subset_boot$anygirls == 0])
+  
+  # Fit a model
+  iptw_model_boot <- lm_robust(aauw ~ anygirls, data=wash_subset_boot, weights=iptw_weight_boot)
+  boot_iptw[i] <- coef(iptw_model_boot)[2]
+}
+```
+
+
+
+---
+
+# Illustration: Washington (2008)
+
+- Bootstrap SE and percentile intervals
+
+```{r}
+# Estimated standard error
+boot_se <- sd(boot_iptw)
+boot_se
+
+# Asymptotic CI
+c(iptw_est - qnorm(.975)*boot_se, iptw_est + qnorm(.975)*boot_se)
+
+# Percentile interval
+quantile(boot_iptw - iptw_est, c(.025, .975))
+
+```
+
+
+
+---
+
+class: title-slide
+
 # Directed Acyclic Graphs
 $$
   \require{cancel}
@@ -351,6 +625,369 @@ $$
 
 ---
 
+# What to condition on?
+
+- The main challenge in designing an observational study is figuring out what $\mathbf{X}$ is.
+  - What do you need to control for in order to make $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i | \mathbf{X}_i$ plausible?
+--
+
+- One useful tool: **graphical models**
+  - Represent causal relations in terms of vertices/nodes ( $V$ ) and edges ( $E$ ) on a graph $G$.
+  - **Vertices** represent variables
+  - Directed **edges** denote non-zero causal effects.
+--
+
+- We will use DAGs to reason about (conditional) dependencies between variables 
+  - Slight conceptual/terminology differences from potential outcomes, but fundamentals of graphical approaches are the same
+  - See: Imbens (2020; JEL) for comments on the differences. Richardson and Robins (2013) for a unification.
+
+
+---
+
+# Directed Acyclic Graphs
+
+```{tikz, dag, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node (x) at (1, 1) {$X$};
+\node (u) at (1, -1) {$U$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (x) -- (y);
+\draw[->, >=stealth, thick] (x) -- (d);
+\draw[->, >=stealth, dotted, thick] (u) -- (y);
+\draw[->, >=stealth, dotted, thick] (u) -- (d);
+\end{tikzpicture}
+```
+
+1. **Directed**: Edges have arrows
+2. **Acyclic**: A node can't be its own descendant
+3. **Graph**: Comprised of nodes and edges
+
+- DAGs encode causal assumptions
+  - Absence of an edge - assume **no** causal effect
+  - Direction of the arrow - direction of effect
+
+---
+
+# Directed Acyclic Graphs
 
 
 
+.pull-left[
+```{tikz, dag 2, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node (x) at (0.5, 1) {$X$};
+\node (y) at (1,0) {$Y$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (x) -- (y);
+\draw[->, >=stealth, thick] (x) -- (d);
+\end{tikzpicture}
+```
+]
+
+.pull-right[ 
+- Chain: $X \rightarrow D \rightarrow Y$
+- Fork: $D \leftarrow X \rightarrow Y$
+- .maroon[Collider]: $X \rightarrow Y \leftarrow Y$
+
+]
+
+- A **parent** node is a direct cause of a **child** node.
+- An **ancestor** node is a direct or indirect cause of a **descendent** node.
+
+- **Path**: A sequence of nodes connected by edges (either direction!)
+  - Causal path: All arrows are pointed in the same direction
+  - Non-causal path: Some arrows go in the opposite direction
+
+
+---
+
+
+# Directed Acyclic Graphs
+
+.pull-left[
+```{tikz, dag 3, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node (x) at (0.5, 1) {$X$};
+\node (y) at (1,0) {$Y$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (x) -- (y);
+\draw[->, >=stealth, thick] (x) -- (d);
+\end{tikzpicture}
+```
+]
+
+.pull-right[ 
+$$Y = f_Y(D, X, \epsilon_Y)\\
+D = f_D(X, \epsilon_D)$$
+]
+
+- DAGs are a way of representing a particular **nonparametric** structural equation model 
+- The DAG also represents a factorization of the joint distribution if it's compatible with the DAG.
+
+$$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
+- This lets us read (conditional) independence relationships directly from the DAG.
+
+---
+
+# D-separation
+
+- How do we know if two nodes $A$ and $B$ are conditionally dependent or independent conditional on a third set of nodes $C$? 
+- We can read this right off of the DAG using the "*d*-separation" criterion.
+  - If $A$ and $B$ are *d*-separated given $C$, then $A {\perp \! \! \! \perp} B | C$
+  - Otherwise they are *d*-connected
+--
+
+- When are two nodes $d$-separated?
+  - When there are no **unblocked** paths between them given $C$.
+--
+
+- When are paths unblocked?
+  - When there is a chain or fork that is *not* conditioned on in $C$.
+  - When there is a collider (or descendent of a collider) that *is* conditioned on in $C$.
+--
+
+- Conditioning on causal chains or common causes (forks) blocks a path. 
+- Conditioning on common effects (colliders) unblocks a path.
+
+---
+
+# D-separation
+
+```{tikz, d-separation, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (x1) at (0,0) {$X_1$};
+\node (x2) at (1, 0) {$X_2$};
+\node (d) at (0,1) {$D$};
+\node (m) at (1,1) {$M$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (x1) -- (d);
+\draw[->, >=stealth, thick] (x1) -- (x2);
+\draw[->, >=stealth, thick] (x2) -- (y);
+\draw[->, >=stealth, thick] (x2) -- (m);
+\draw[->, >=stealth, thick] (d) -- (m);
+\draw[->, >=stealth, thick] (m) -- (y);
+\end{tikzpicture}
+```
+
+- Are $X_2$ and $D$ $d$-separated?
+--
+
+- What are the paths?
+  - $D \rightarrow M \rightarrow Y \leftarrow X_2$ (Blocked by collider at $Y$)
+  - $D \rightarrow M \leftarrow X_2$ (Blocked by collider at $M$)
+  - $D \leftarrow X_1 \rightarrow X_2$ (Unblocked)
+
+---
+
+
+# D-separation
+
+```{tikz, d-separation 2, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node[circle, draw] (x1) at (0,0) {$X_1$};
+\node (x2) at (1, 0) {$X_2$};
+\node (d) at (0,1) {$D$};
+\node (m) at (1,1) {$M$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (x1) -- (d);
+\draw[->, >=stealth, thick] (x1) -- (x2);
+\draw[->, >=stealth, thick] (x2) -- (y);
+\draw[->, >=stealth, thick] (x2) -- (m);
+\draw[->, >=stealth, thick] (d) -- (m);
+\draw[->, >=stealth, thick] (m) -- (y);
+\end{tikzpicture}
+```
+
+- Are $X_2$ and $D$ $d$-separated conditional on $X_1$?
+--
+
+- Three paths
+  - $D \rightarrow M \rightarrow Y \leftarrow X_2$ (Blocked by collider at $Y$)
+  - $D \rightarrow M \leftarrow X_2$ (Blocked by collider at $M$)
+  - $D \leftarrow X_1 \rightarrow X_2$ (Blocked by conditioning on $X_1$)
+
+---
+
+
+# D-separation
+
+```{tikz, d-separation 3, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node[circle, draw]  (x1) at (0,0) {$X_1$};
+\node (x2) at (1, 0) {$X_2$};
+\node (d) at (0,1) {$D$};
+\node[circle, draw]  (m) at (1,1) {$M$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (x1) -- (d);
+\draw[->, >=stealth, thick] (x1) -- (x2);
+\draw[->, >=stealth, thick] (x2) -- (y);
+\draw[->, >=stealth, thick] (x2) -- (m);
+\draw[->, >=stealth, thick] (d) -- (m);
+\draw[->, >=stealth, thick] (m) -- (y);
+\end{tikzpicture}
+```
+
+- Are $X_2$ and $D$ $d$-separated conditional on $X_1$ and $M$?
+--
+
+- Three paths
+  - $D \rightarrow M \rightarrow Y \leftarrow X_2$ (Blocked by collider at $Y$)
+  - $D \rightarrow M \leftarrow X_2$ (Unblocked by a conditioned collider at $M$)
+  - $D \leftarrow X_1 \rightarrow X_2$ (Blocked by conditioning on $X_1$)
+
+---
+
+
+# Defining causal effects
+
+- The graph lets us read conditional probabilities on the observed quantities $P(Y | D, X)$.
+- However, we don't just want $P(Y |D)$, we want a *counterfactual*. Within Pearl's graph framework, an intervention is represented by the "do" operator applied to a node.
+  - $\text{do}(X = x)$ denotes an intervention that sets $X$ to a particular level $x$
+--
+
+- We want to learn about the post-intervention distribution $P(Y | \text{do}(X = x))$, but we only have the observed distribution/DAG.
+  - We want to **identify** the counterfactual distribution (or a functional thereof) from the observed distribution.
+  - How do we do this: Pearl's "do-calculus"
+--
+
+- Similar idea to our identification problem when defining effects in terms of potential outcomes.
+  - We observe $Y | D, X$ and want to identify $Y(d)$ 
+  - In fact, $Y_i(d)$ and $Y|do(D=d)$ are essentially representing the same counterfactual concept.
+  
+---
+
+# Backdoor adjustment
+
+- If we condition on covariates $X$ can we non-parametrically identify the effect of $D$ on $Y$?
+  - Yes, if we block all **backdoor paths** from $Y$ to $D$.
+--
+
+- Backdoor paths are all paths between $Y$ and $D$ that contain an arrow into $D$
+  - By definition these are **non-causal** paths (somewhere there is a fork or collider)
+  - **Intuition** - we want to keep any *causal* sources of dependency between $D$ and $Y$ and get rid of any non-causal dependencies (while avoiding *creating* new dependencies).
+--
+
+- **Backdoor criterion**
+  1. No nodes in $X$ are descendents of $D$
+  2. $D$ and $Y$ are $d$-separated by $X$ in the graph with all arrows out of $D$ removed (i.e. the graph w/ only backdoor paths between $D$ and $Y$)
+--
+
+- The second criterion is analogous to our key selection-on-observables identifying assumption: $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D | X$ 
+  - Richardson and Robins (2013) make this connection explicit with SWIGs.
+--
+
+- Estimation via standard selection-on-observables techniques (sub-classification, weighting, matching, regression) conditional on $X$.
+  - What the DAG helps clarify is *which* variables belong in $X$
+
+---
+
+# Good controls
+
+
+```{tikz, good control, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node[circle, draw] (x) at (1, 2) {$X$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (x) -- (y);
+\draw[->, >=stealth, thick] (x) -- (d);
+\end{tikzpicture}
+```
+
+- One backdoor path from $D$ to $Y$: $D \leftarrow X \rightarrow Y$.
+- Conditioning on $X$ blocks that path
+
+---
+
+# Bad controls
+
+
+```{tikz, bad control, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node[circle, draw] (m) at (1, -1) {$M$};
+\node (y) at (2,0) {$Y$};
+\node (u) at (2,-1) {$U$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (d) -- (m);
+\draw[->, >=stealth, dotted,  thick] (u) -- (m);
+\draw[->, >=stealth, dotted, thick] (u) -- (y);
+\end{tikzpicture}
+```
+
+- No backdoor paths between $D$ and $Y$ w/o conditioning
+- But conditioning on $M$ opens up a non-causal path between $D$ and $Y$
+  - $D \rightarrow Z \leftarrow U \rightarrow Y$
+
+---
+
+# Bad controls
+
+
+```{tikz, m bias, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node[circle, draw] (x) at (2, 1) {$X$};
+\node (y) at (4,0) {$Y$};
+\node (u1) at (0,2) {$U_1$};
+\node (u2) at (4,2) {$U_2$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, dotted, thick] (u2) -- (y);
+\draw[->, >=stealth, dotted, thick] (u2) -- (x);
+\draw[->, >=stealth, dotted, thick] (u1) -- (d);
+\draw[->, >=stealth, dotted, thick] (u1) -- (x);
+\end{tikzpicture}
+```
+
+- Even though $X$ is not causally related to $D$ or $Y$ ("irrelevant control"), conditioning on it still induces bias if there are common causes of $X$ and treatment and $X$ and outcome
+- "M-bias"
+---
+
+# Neutral Controls
+
+
+```{tikz, neutral control, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d) at (0,0) {$D$};
+\node[circle, draw] (x) at (1,2) {$X$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (d) -- (y);
+\draw[->, >=stealth, thick] (x) -- (y);
+\end{tikzpicture}
+```
+
+- $X$ is not a confounder but is predictive of $Y$
+- Might improve precision!
+
+---
+
+# Are graphs and P.O. incompatible?
+
+> So, what is it about epidemiologists that drives them to seek the light of new tools, while economists (at least those in Imbens’s camp) seek comfort in partial blindness, while missing out on the causal revolution? Can economists do in their heads what epidemiologists observe in their graphs? Can they, for instance, identify the testable implications of their own assumptions? Can they decide whether the IV assumptions (i.e., exogeneity and exclusion) are satisfied in their own models of reality? Of course they can’t; such decisions are intractable to the graph-less mind. (I have challenged them repeatedly to these tasks, to the sound of a pin-drop silence)
+
+Pearl (2014) (http://causality.cs.ucla.edu/blog/index.php/2014/10/27/are-economists-smarter-than-epidemiologists-comments-on-imbenss-recent-paper/)
+
+---
+
+# SWIGs - a Unification
+
+.center[<img src="assets/swig.png" alt = "swigs", height="400px">]
+
+Shpitser, Richardson and Robins (2021)
+
+---
