@@ -1,0 +1,471 @@
+---
+title: "Week 5: Matching and Regression"
+subtitle: "PLSC 30600 - Causal Inference"
+# author: "Anton Strezhnev"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [default, uchicago_pol_meth.css]
+    nature:
+      highlightLines: true
+      ratio: '16:9'
+  
+---
+
+# Previously
+
+  - Identification under **conditional ignorability**
+    - Treatment assignment is independent of the potential outcomes *conditional* on observed covariates
+    - "Selection-on-observables"
+  - With discrete and low-dimensional covariates, simple nonparametric estimator:
+    - Weighted average of CATEs across strata
+    - With continuous/higher-dimensional covariates, often need *some* parametric assumptions.
+  - Can we adjust for a single scalar?
+    - Yes: the propensity score: $e(x) = P(D_i = 1 | X_i = x)$
+    - IPTW: Weight each unit by the inverse probability of receiving the treatment it received.
+---
+
+# This week
+
+  - Can we construct a "weighting" estimator that doesn't rely on a parametric model for the outcome?
+    - Yes: Matching!
+    - Problem: (inexact) matching is biased (though typically less biased than *failing* to adjust for confounding).
+  - What if we modelled the outcome instead?
+    - Regression estimators!: $\hat{E}[Y_i(0) | X]$ and $\hat{E}[Y_i(1) | X]$
+  - Combining estimators
+    - Regresssion to correct for bias in matching
+    - Regression + IPTW: "doubly-robust" augmented IPTW
+    
+---
+
+class: title-slide
+
+# Matching
+$$
+  \require{cancel}
+$$
+
+---
+
+# Imputation estimators
+
+- We want to estimate the sample average treatment effect
+
+$$\tau = \sum_{i=1}^N Y_i(1) - Y_i(0)$$
+
+- If we could directly observe $Y_i(1)$ and $Y_i(0)$, we could just plug them into the expression above.
+  - We can't...but what if we could construct an *estimator* for each $Y_i(1)$ and $Y_i(0)$ and then plug *those* in.
+--
+
+- Consider $Y_i(1)$.
+  - If $D_i = 1$, we can just plug in $Y_i$
+  - If $D_i = 0$, we'll have to come up with some way of *imputing* $Y_i(1)$ from the rest of the data.
+--
+
+- If treatment is completely ignorable, a good (unbiased) estimate is just the average of $Y_i$ in the control group
+- If treatment is not completely ignorable, we'll need to somehow use the $X_i$ 
+
+---
+
+# Imputation estimators
+
+- In general, a lot of estimators that we use can be written as imputations of the individual potential outcomes
+
+$$\hat{\tau} = \sum_{i=1}^N \widehat{Y_i(1)} - \widehat{Y_i(0)}$$
+
+- One intuitive imputation approach to adjust for $X_i$ is to simply impute, for each treated unit, the opposite potential outcome using the control units with the most "similar" values of $X_i$
+  - Do the same with the control units (imputing using the "most similar" treated observations).
+- These are **matching** estimators
+
+---
+
+# Matching estimators
+
+- How do we define what "close" or "similar" means?
+--
+
+- One approach: choose a *distance metric*
+  - Let $Q_{ij}$ denote the distance between the covariates $X_i$ and $X_j$ between units $i$ and $j$
+--
+
+- Common metrics:
+  - *Exact*: $Q_{ij} = 0$ if $X_i = X_j$ and $Q_{ij} = \infty$ if $X_i \neq X_j$
+  - *Standardized Euclidean*: 
+  
+  $$Q_{ij} = \sqrt{\sum_{k=1}^K \frac{(X_{ik} - X_{jk}^2)}{s_k}}$$
+  - *Mahalanobis*:
+  
+  $$Q_{ij} = \sqrt{(X_i - X_j)^{\prime}S^{-1}(X_i - X_j)}$$
+where $S$ is the sample covariance matrix.
+  
+---
+
+# Matching with or without replacement
+
+- Should we let units matched to one observation be allowed to be matched again?
+--
+
+- Advantages
+  - Bias reduction - we always pick the closest matches.
+  - Order of matching doesn't matter
+--
+
+- Challenges:
+  - Inference is (slightly) more complicated
+  - Possibly greater variance (e.g. only one treated unit is "close" to many controls)
+--
+
+- For the most part, we'll do matching **with** replacement.
+
+---
+
+# Nearest-neighbor matching
+
+- For a treated unit with $D_i = 1$, we impute the potential outcomes as:
+
+  $$\widehat{Y_i(1)} = Y_i$$
+  $$\widehat{Y_i(0)} = \frac{1}{M} \sum_{j \in \mathcal{J}_M(i)} Y_j$$
+  
+  where $\mathcal{J}_M(i)$ is the set of $M$ closest matches to $i$ among the control observations.
+- Do the same for the controls (but impute $\hat{Y_i(0)}$ using matched treated units)
+--
+
+- We can think of matching as a kind of weighting estimator that assigns a weight of $1 + \frac{K_M(i)}{M}$ to each unit.
+
+$$\hat{\tau^m_M} = \frac{1}{N}\sum_{i=1}^N (2D_i -1) \bigg(1 + \frac{K_M(i)}{M}\bigg) Y_i$$
+
+---
+
+## ATE or ATT?
+
+- In many settings where we might want to use matching, we have a handful of treated units and many controls.
+  - Easy to find a good match for each treated unit
+  - *Hard* to find a good match for each control.
+--
+
+- So instead of trying to estimate the ATE, we could try to estimate the ATT instead -- using the controls *only* to impute.
+
+$$\hat{\tau^m_{\text{ATT}}} = \sum_{i: D_i = 1} Y_i - \widehat{Y_i(0)}$$
+
+--
+
+- **Intuition**: Matching as a form of "pruning" -- many controls will have $K_M(i) = 0$
+  - We're throwing away observations! But with good reason.
+--
+
+- ATT in an observational study is often the more policy-relevant quantity
+  - e.g.: How were the incomes of people who *actually* received a particular social service improved? 
+
+---
+
+## Properties of the simple matching estimator
+
+- Unless matching is exact, Abadie and Imbens (2006) show that matching exhibits a bias.
+$$B_M = \frac{1}{N}\sum_{i=1}^N (2D_i - 1) \bigg[\frac{1}{M} \sum_{m=1}^M (\mu_{1-D_i}(X_i) - \mu_{1-D_i}(X_{\mathcal{J}_m(i)})\bigg]$$
+
+where $\mu_1(X_i) = E[Y_i(1) | X_i]$ and $\mu_0(X_i) = E[Y_i(0) | X_i]$ are the conditional expectations.
+--
+
+- **Intuitively** - the bias term captures the differences in the conditional expectation function between observation $i$'s covariates and the covariates of the $M$ matches in $\mathcal{J}_m(i)$.
+  - When matching is exact, $X_i$ and all of the $X_j$s of the matched units are identical
+  - When matching is inexact, we have this **matching discrepancy**
+--
+
+- But does this bias go away in large samples?
+  - With many continuous covariates, not fast enough - the rate of convergence of the bias term is slower than that of the sampling variance (the simple matching estimator is not $\sqrt{n}$-consistent).
+  - This means our asymptotic approximations for the variance will be poor even in large samples.
+
+
+---
+
+# Simulation to show the bias
+
+- Let's construct a simulation with confounding. Start with $K=8$ i.i.d. covariates $X_1, X_2, \dotsc X_K$ each distributed $\mathcal{N}(0,1)$.
+--
+
+- Treatment probability is modeled as a logit
+
+$$\text{log}\bigg(\frac{e(X_i)}{1-e(X_i)}\bigg) =  \beta_1X_1 + \beta_2X_2 + \beta_3X_3 + \dotsc + \beta_k X_k$$
+
+with assumed coefficients $\beta_k = \frac{1}{k}$
+--
+
+- Outcome is linear w/ same coefficients $\beta_k$ and a constant treatment effect of $2$
+
+$$Y_i = 2D_i + \mathbf{X}\beta + \epsilon_i$$
+
+---
+
+# Simulation
+
+- First, our unadjusted simple difference-in-means estimator
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(estimatr)
+library(MASS)
+inv.logit = function(x) 1/(1 + exp(-x))
+
+```
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 8
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- coef(lm(Y ~ D, data=dat))[2]
+}
+hist(ate_est, main="Unadjusted", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+
+```
+
+---
+
+# Simulation
+
+- Now, the 1-to-1 matching estimator
+
+```{r, echo=F, message=F, warning=F}
+library(Matching)
+
+```
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 8
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- Match(Y = Y, Tr = D, X = X, estimand="ATE", Weight = 2)$est
+}
+hist(ate_est, main="1-to-1 Matching", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+
+```
+
+---
+
+# Simulation
+
+- How about 1-to-3 matching?
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 8
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- Match(Y = Y, Tr = D, X = X, estimand="ATE", M = 3, Weight = 2)$est
+}
+hist(ate_est, main="1-to-3 Matching", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+```
+
+---
+
+# Simulation
+
+- Now, what if we estimate the bias correction (using a regression estimator)
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 8
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- Match(Y = Y, Tr = D, X = X, estimand="ATE", M = 3, BiasAdjust=T, Weight = 2)$est
+}
+hist(ate_est, main="1-to-3 Matching w/ bias correction", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+```
+---
+
+# Bias-corrected matching
+
+- Instead of substituting in just the average in the matches, Abadie and Imbens (2006) propose a "bias-corrected" imputation 
+- For $D_i = 1$
+  $$\widehat{Y_i(1)} = Y_i$$
+  $$\widehat{Y_i(0)} = \frac{1}{M}\sum_{j \in \mathcal{J}_M(i)} (Y_j + \hat{\mu_0}(X_i) - \hat{\mu_0}(X_j))$$
+- For $D_i = 0$
+  $$\widehat{Y_i(0)} = Y_i$$
+  $$\widehat{Y_i(1)} = \frac{1}{M}\sum_{j \in \mathcal{J}_M(i)} (Y_j + \hat{\mu_1}(X_i) - \hat{\mu_1}(X_j))$$
+  
+- **Intuition** -- We combine regression and matching! Regression models adjust for the residual imbalance that matching doesn't solve while matching helps limit the consequences of regression model misspecification.
+
+
+---
+
+# Matching as pre-processing
+
+.center[<img src="assets/hoetal.png" alt = "hoetal", height="500px">]
+
+---
+
+
+# Variance estimation
+
+- Unfortunately the standard pairs bootstrap doesn't work for variance estimation (even in the case with zero asymptotic bias) (Abadie and Imbens, 2008)
+  - **Intuition**: The regular bootstrap does not preserve the distribution of match counts (the weights) $K_M(i)$.
+--
+
+- Otsu and Rai (2017) show that a *weighted* bootstrap based on the linearized form of the bias-corrected matching estimator *will* work since it conditions on the number of times a unit is matched
+--
+
+- Alternatively, Abadie and Imbens (2006) derive the asymptotic variance + provide an estimator.
+  - `Matching` package implements this estimator.
+
+---
+
+
+# Recent matching methods
+
+
+- *Optimal* (full) matching
+  - Matching as a form of "sub-classification" - each unit is assigned to a sub-class with at least one treated and one control unit
+  - Sub-classes chosen to minimize within-subclass distances.
+--
+
+- *Genetic* matching (Diamond and Sekhon, 2013)
+  - Find the $S^{-1}$ matrix in the Mahalanobis distance that optimizes some criterion of balance between treated and control groups
+  - Essentially trying to find optimal "weights" to put on covariates in the matching algorithm to achieve some global optimum of balance.
+  - Use a "genetic" algorithm to search for this optimum (non-linear optimization problem)
+--
+
+- In general, *matching* is just another technique to try to achieve *balance* on the covariates between the treated and control groups
+  - To some extent being superseded by other approaches to weighting that don't rely on distance metrics between observations.
+  
+---
+
+# Example: Keriakes et. al. (2000)
+
+- Let's see how matching compares to weighting using the dataset from section on percutaneous coronary interventions.
+  - Our treatment: use of an anti-platelet drug (abciximab)
+  - Our outcome: survival at 6 months
+- Load the data and match on all the covariates w/o bias correction
+```{r, warning=F, message=F}
+library(Matching)
+pci <- read_csv("assets/pci.csv")
+
+match_results <- Matching::Match(Y = pci$sixMonthSurvive, Tr = pci$abcix,
+                         X = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
+                         M=3 , Weight = 2, estimand = "ATE")# Weight = 2 = Mahalanobis distance
+
+```
+
+---
+
+# Example: Keriakes et. al. (2000)
+
+```{r}
+summary(match_results)
+```
+
+- Results aren't too different from the unadjusted estimate - this might be because of left-over bias. Let's see how well matching improved the balance.
+
+---
+
+
+# Example: Keriakes et. al. (2000)
+
+```{r, message=F}
+library(cobalt)
+cobalt::bal.tab(match_results, treat = pci$abcix, covs = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc))
+```
+
+- Still have pretty bad imbalance on `ejecfrac` and `ves1proc`
+
+---
+
+# Example: Keriakes et. al. (2000)
+
+```{r, fig.align = "center", fig.height=5.5, fig.width=8}
+cobalt::love.plot(match_results, treat = pci$abcix, covs = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
+                  abs=T, binary="std", thresholds= c(m=.1))
+```
+
+---
+# Example: Keriakes et. al. (2000)
+
+```{r, fig.align="center"}
+match_weights <- table(c(match_results$index.treated, match_results$index.control))/3
+hist(match_weights, main="Matching weights", xlab="Weight")
+```
+
+---
+
+# Example: Keriakes et. al. (2000)
+
+- Let's add on the bias correction
+
+```{r}
+match_biasadj <- Matching::Match(Y = pci$sixMonthSurvive, Tr = pci$abcix,
+                         X = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
+                         M=3 , Weight = 2, estimand = "ATE", BiasAdjust = T)# Weight = 2 = Mahalanobis distance
+
+summary(match_biasadj)
+
+```
+
+
+---
+
+# Summary
+
+  - Matching is a useful tool for reducing covariate imbalance between treated and control groups in a selection-on-observables design
+    - **Intuition**: Group together treated and control units with "similar" covariate values
+    - Does not depend on any model for the treatment or the outcome
+--
+  - However, matching is not a universal panacea even if we buy selection-on-observables
+    - Still have residual imbalance due to imperfect matches.
+--
+  - **Combining** matching and regression
+    - Matching is commonly framed as a "pre-processing" step prior to regression to avoid regression imputations that are far from the data.
+    
+---
+
+class: title-slide
+
+# Regression
+---
