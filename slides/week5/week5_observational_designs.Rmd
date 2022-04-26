@@ -74,7 +74,7 @@ $$\tau = \sum_{i=1}^N Y_i(1) - Y_i(0)$$
 $$\hat{\tau} = \sum_{i=1}^N \widehat{Y_i(1)} - \widehat{Y_i(0)}$$
 
 - One intuitive imputation approach to adjust for $X_i$ is to simply impute, for each treated unit, the opposite potential outcome using the control units with the most "similar" values of $X_i$
-  - Do the same with the control units (imputing using the "most similar" treated observations).
+  - Do the same among control units (imputing using the "most similar" treated observations).
 - These are **matching** estimators
 
 ---
@@ -92,7 +92,7 @@ $$\hat{\tau} = \sum_{i=1}^N \widehat{Y_i(1)} - \widehat{Y_i(0)}$$
   - *Exact*: $Q_{ij} = 0$ if $X_i = X_j$ and $Q_{ij} = \infty$ if $X_i \neq X_j$
   - *Standardized Euclidean*: 
   
-  $$Q_{ij} = \sqrt{\sum_{k=1}^K \frac{(X_{ik} - X_{jk}^2)}{s_k}}$$
+  $$Q_{ij} = \sqrt{\sum_{k=1}^K \frac{(X_{ik} - X_{jk})^2}{s_k}}$$
   - *Mahalanobis*:
   
   $$Q_{ij} = \sqrt{(X_i - X_j)^{\prime}S^{-1}(X_i - X_j)}$$
@@ -127,7 +127,7 @@ where $S$ is the sample covariance matrix.
   $$\widehat{Y_i(0)} = \frac{1}{M} \sum_{j \in \mathcal{J}_M(i)} Y_j$$
   
   where $\mathcal{J}_M(i)$ is the set of $M$ closest matches to $i$ among the control observations.
-- Do the same for the controls (but impute $\hat{Y_i(0)}$ using matched treated units)
+- Do the same for the controls (but impute $\hat{Y_i(1)}$ using matched treated units)
 --
 
 - We can think of matching as a kind of weighting estimator that assigns a weight of $1 + \frac{K_M(i)}{M}$ to each unit.
@@ -428,7 +428,7 @@ cobalt::love.plot(match_results, treat = pci$abcix, covs = pci %>% dplyr::select
 ---
 # Example: Keriakes et. al. (2000)
 
-```{r, fig.align="center"}
+```{r, fig.align="center", fig.height=5.5, fig.width=8}
 match_weights <- table(c(match_results$index.treated, match_results$index.control))/3
 hist(match_weights, main="Matching weights", xlab="Weight")
 ```
