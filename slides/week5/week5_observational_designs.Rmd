@@ -43,8 +43,6 @@ class: title-slide
 # Matching
 $$
   \require{cancel}
-  \DeclareMathOperator*{\argmax}{arg\,max}
-  \DeclareMathOperator*{\argmin}{arg\,min}
 $$
 ```{r, echo=F}
 options(digits=3)
@@ -821,6 +819,35 @@ where $w_i = (D_i - E[D_i | X_i])^2$
 --
 
 - The typical multiple regression estimator does not recover the ATE under effect heterogeneity.
+
+---
+
+# Regression weighting
+
+```{r}
+full_reg <- lm_robust(sixMonthSurvive ~ abcix + stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data=pci)
+tidy(full_reg) %>% filter(term == "abcix")
+
+# Get the weights
+resid_reg <- lm_robust(abcix ~stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data=pci)
+pci$abcix_resid <- pci$abcix - resid_reg$fitted.values
+# Show FWL working
+partial_reg <- lm_robust(sixMonthSurvive ~ abcix_resid, data=pci)
+tidy(partial_reg) %>% filter(term == "abcix_resid")
+
+# Weights on individual treatment effects
+pci$abcix_w <- pci$abcix_resid^2
+
+```
+
+---
+
+# Regression weighting
+
+```{r, echo=F, fig.height=6, fig.align="center"}
+# Summarize
+hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
+```
 
 ---
 
