@@ -1,0 +1,581 @@
+---
+title: "Week 6: Instrumental Variables"
+subtitle: "PLSC 30600 - Causal Inference"
+# author: "Anton Strezhnev"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [default, uchicago_pol_meth.css]
+    nature:
+      highlightLines: true
+      ratio: '16:9'
+  
+---
+
+# Last two weeks
+
+  - Identification under **conditional ignorability**
+    - Treatment assignment is independent of the potential outcomes given observed confounders $\mathbf{X}$
+    - "Selection-on-observables"
+  - "Selection-on-observables" isn't a testable assumption
+    - Relies on theory to decide which $\mathbf{X}$ to include.
+    - DAGs can help here.
+  - Lots of estimation strategies
+    - *Stratify* with low-dimensional $\mathbf{X}$
+    - IPTW to eliminate treatment-covariate relationship, regression to model the outcome-covariate relationship.
+    - Matching to reduce model dependence.
+      - Or consider more modern flexible modelling techniques for $E[Y_i(d) | X_i]$
+      
+---
+
+# This week
+
+  - Can we estimate a treatment effect when neither ignorability nor conditional ignorability hold for treatment?
+    - Can we get rid of *unobserved* confounding?
+  - "Instrumental variables" designs are one way of dealing with this 
+--
+
+  - We can identify *an* average treatment effect if...
+    - There *does* exist an ignorable or conditionally ignorable **instrument** which...
+    - ...has a monotonic effect on the treatment...
+    - ...and has no effect on the outcome *except* through its effect on the treatment.
+--
+  - This lets us identify the "Local Average Treatment Effect"
+    - Average effect among those who are *moved* to take treatment by the instrument
+    
+
+---
+
+class: title-slide
+
+# Instrumental Variables
+$$
+  \require{cancel}
+$$
+
+---
+
+# Treatment non-compliance
+
+- Often experiments suffer from treatment **non-compliance**
+  - Participants randomized to receive a phone call don't pick up.
+  - Participants randomized to wear surgical masks choose not to.
+--
+
+- New notation!
+  - Let $Z_i$ denote whether $i$ is assigned to receive a treatment.
+  - Let $D_i$ denote the treatment actually *taken* by an individual. 
+--
+
+- Can we just take the simple difference-in-means between $D_i = 1$ and $D_i = 0$?
+  - No! Non-compliance affected by other factors which might also affect the outcome.
+  - We're stuck with an observational design.
+  
+---
+
+- Unless...
+  
+---
+
+# Intent-to-treat effect
+
+- We can first just change the question - instead of the effect of **treatment**, we can make our estimand the effect of being **assigned to treatment**.
+- Our estimator for the ITT is just the difference in means between the $Z_i = 1$ and $Z_i = 0$ arms
+$$\hat{\tau}_{\text{ITT}} = \hat{E}[Y_i | Z_i = 1] - \hat{E}[Y_i | Z_i = 0]$$
+
+- Identified under randomization of $Z_i$ even if $D_i$ is not randomized.
+  - But combines two effects: the actual effect of $D_i$ and the effect of $Z_i$ on $D_i$.
+
+---
+
+# Instrumental variables
+
+```{tikz , echo=F, fig.align='center'}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}
+    \node (z1) at (-1,0) {$Z$};
+    \node (a1) at (0,0) {$D$};
+    \node (l1) at (0.5, 1)
+    {$U$};
+    \node (y) at
+    (1,0) {$Y$};
+    \draw[->, >=stealth, thick, dashed] (l1) -- (a1);
+    \draw[->, >=stealth, thick, dashed] (l1) --  (y);
+    \draw[->, >=stealth, thick] (a1) -- (y);
+    \draw[->, >=stealth, thick] (z1) -- (a1);
+\end{tikzpicture}
+```
+
+- Suppose though that we're interested in the *actual* effect of receiving treatment (the effect of $D_i$). What can we do?
+
+
+
+---
+
+# Instrumental variables
+
+- Start by writing down potential outcomes for $D_i$ along with .maroon[joint] potential outcomes of $Y_i$ in terms of $Z_i$ and $D_i$
+
+$$D_i(z) = D_i \text{ if } Z_i = z$$
+$$Y_i(d, z) = Y_i \text{ if } D_i = d, Z_i = z$$
+--
+
+- Observed treatment $D_i$ is a function of treatment assignment ( $Z_i$ ) - it's a post-treatment quantity (and so has potential outcomes).
+
+---
+
+# Assumptions
+
+1. Randomization of instrument
+2. Exclusion restriction
+3. Non-zero first-stage relationship
+4. Monotonicity
+
+---
+
+# Assumption 1: Randomization
+
+- $Z_i$ is is independent of both sets of potential outcomes (potential outcomes for the treatment and potential outcomes for the outcome).
+
+$$\{D_i(1), D_i(0)\} {\perp \! \! \! \perp} Z_i$$
+
+$$\{Y_i(d, z) \forall d, z\} {\perp \! \! \! \perp} Z_i$$
+--
+
+- We can weaken this to conditional ignorability (where $Z_i$ is randomized conditional on $X_i$), which is common in observational settings.
+  - But if we don't believe conditional ignorability for the treatment, why would we believe it for the instrument?
+- Sufficient to identify the **intent-to-treat (ITT)** effect
+
+---
+
+# Assumption 1: Randomization
+
+```{tikz , echo=F, fig.align='center'}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}
+    \node (z1) at (-1,0) {$Z$};
+    \node (a1) at (0,0) {$D$};
+    \node (l1) at (0.5, 1)
+    {$U$};
+    \node (y) at
+    (1,0) {$Y$};
+    \draw[->, >=stealth, thick, dashed] (l1) -- (a1);
+    \draw[->, >=stealth, thick, dashed] (l1) --  (y);
+    \draw[->, >=stealth, thick] (a1) -- (y);
+    \draw[->, >=stealth, thick] (z1) -- (a1);
+   \draw[->, >=stealth, red!60, thick, dashed] (l1) -- node[cross out,draw, solid]{} (z1);
+\end{tikzpicture}
+```
+
+- The randomization assumption eliminates any arrows from $U$ to $Z$.
+
+---
+
+# Assumption 2: Exclusion restriction
+
+- $Z_i$ **only affects** $Y_i$ by way of its effect on $D_i$.
+- In other words, if $D_i$ were set at some level $d$, the potential outcome for $Y_i(d, z)$ does not depend on $z$.
+
+$$Y_i(d, z) = Y_i(d, z^{\prime}) \text{ for any } z \neq z^{\prime}$$
+
+--
+
+- **Not a testable assumption!** -- we have to justify this with substantive knowledge.
+  - Easiest in the treatment non-compliance case
+  - But consider what might happen in a non-blinded situation where respondents knew their treatment assignments.
+- "Surprise" factor -- If I told you $Z$ was associated with $Y$, would you think "that's odd"?
+
+---
+
+# Assumption 2: Exclusion restriction
+
+```{tikz , echo=F, fig.align='center'}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}
+    \node (z1) at (-1,0) {$Z$};
+    \node (a1) at (0,0) {$D$};
+    \node (l1) at (0.5, 1)
+    {$U$};
+    \node (y) at
+    (1,0) {$Y$};
+    \draw[->, >=stealth, thick, dashed] (l1) -- (a1);
+    \draw[->, >=stealth, thick, dashed] (l1) --  (y);
+    \draw[->, >=stealth, thick] (a1) -- (y);
+    \draw[->, >=stealth, thick] (z1) -- (a1);
+    \draw[->, >=stealth, red!60, thick] (z1)  to[bend right = 50] node[cross out, -, draw, red!60, thick, midway] {\vspace{3em}} node[red!60, midway, below] {}(y);
+\end{tikzpicture}
+```
+
+
+- The exclusion restriction eliminates any causal paths from $Z$ to $Y$ **except** for $Z \to D \to Y$.
+
+---
+
+# Assumption 3: Non-zero first stage
+
+- $Z_i$ has an effect on $D_i$
+
+$$E[D_i(1) - D_i(0)] \neq 0$$
+--
+
+- Seems trivial, but we need this to make the estimator work.
+- Magnitude matters for estimator performance - a "weak" first-stage $\leadsto$ heavily biased IV estimator
+  - IV estimators are *consistent* but not *unbiased*.
+
+---
+
+# Assumption 3: Non-zero first stage
+
+```{tikz , echo=F, fig.align='center'}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}
+    \node (z1) at (-1,0) {$Z$};
+    \node (a1) at (0,0) {$D$};
+    \node (l1) at (0.5, 1)
+    {$U$};
+    \node (y) at
+    (1,0) {$Y$};
+    \draw[->, >=stealth, thick, dashed] (l1) -- (a1);
+    \draw[->, >=stealth, thick, dashed] (l1) --  (y);
+    \draw[->, >=stealth, thick] (a1) -- (y);
+    \draw[->, >=stealth, thick, red!60, thick] (z1) -- (a1);
+\end{tikzpicture}
+```
+
+- The non-zero first stage assumption requires a path from $Z$ to $D$.
+
+---
+
+# Assumption 4: Monotonicity
+
+- $Z_i$'s effect on $D_i$ only goes in one direction **at the individual level**
+
+$$D_i(1) - D_i(0) \ge 0$$
+
+- If it goes the other way, we can always flip the direction of the treatment to make this hold 
+  - The key is that the instrument does not have a positive effect on $D_i$ for some units and a negative effect for others.
+- **Not a testable assumption**
+
+---
+
+# Assumption 4: Monotonicity
+
+- In binary instrument/binary treatment world, this is sometimes called a "no defiers" assumption.
+
+Stratum              | $D_i(1)$          |  $D_i(0)$ | 
+:-------------------:|:-----------------:|:---------:|
+"Always-takers"      |  $1$              |  $1$      |  
+"Never-takers"       |  $0$              |  $0$      |  
+"Compliers"          |  $1$              |  $0$      | 
+"Defiers"            |  $0$              |  $1$      |
+
+--
+
+- Under no defiers, every unit with $D_i = 1$ and $Z_i = 0$ is an always-taker, every unit with $D_i = 0$ and $Z_i =1$ is a never-taker.
+
+---
+
+# Assumption 4: Monotonicity
+
+```{tikz , echo=F, fig.align='center'}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}
+    \node (z1) at (-1,0) {$Z$};
+    \node (a1) at (0,0) {$D$};
+    \node (l1) at (0.5, 1)
+    {$U$};
+    \node (y) at
+    (1,0) {$Y$};
+    \draw[->, >=stealth, thick, dashed] (l1) -- (a1);
+    \draw[->, >=stealth, thick, dashed] (l1) --  (y);
+    \draw[->, >=stealth, thick] (a1) -- (y);
+    \draw[->, >=stealth, thick, red!60, thick] (z1) -- (a1);
+\end{tikzpicture}
+```
+
+- Can't represent the monotonicity assumption in a DAG - it's an assumption about the form of the relationship between $Z$ and $D$.
+
+---
+
+# Interpreting the IV estimand
+
+- The classic IV estimand with one instrument is a ratio of sample covariances.
+
+$$\tau_{\text{IV}} = \frac{Cov(Y, Z)}{Cov(D, Z)}$$
+
+- With a binary instrument, this is sometimes called the "Wald" estimand - a ratio of differences in means
+
+$$\tau_{\text{IV}} = \frac{E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0]}{E[D_i | Z_i = 1] - E[D_i | Z_i = 0]}$$
+
+---
+
+# Interpreting the IV estimand
+
+- What does the Wald estimand correspond to in terms of causal effects?
+
+$$\tau_{\text{IV}} = \frac{E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0]}{E[D_i | Z_i = 1] - E[D_i | Z_i = 0]}$$
+
+--
+
+- Under our identification assumptions:
+  - The numerator is the ITT
+  - The denominator is the first-stage effect
+  
+---
+
+# Interpreting the IV estimand
+
+- Let's decompose the denominator first - under randomization:
+$$\begin{align*}
+E[D_i | Z_i = 1] - E[D_i | Z_i = 0] &= E[D_i(1) | Z_i = 1] - E[D_i(0) | Z_i = 0]\\
+&= E[D_i(1)] - E[D_i(0)]\\
+&= E[D_i(1) - D_i(0)]
+\end{align*}$$
+
+--
+
+- With binary treatment/binary instrument, we can use law of total expectation to decompose by principal stratum
+
+$$E[D_i(1) - D_i(0)] = E[D_i(1) - D_i(0) | D_i(1) = D_i(0)] \times P(D_i(1) = D_i(0)) + \\
+E[D_i(1) - D_i(0) | D_i(1) > D_i(0)] \times P(D_i(1) > D_i(0)) + \\
+E[D_i(1) - D_i(0) | D_i(1) < D_i(0)] \times P(D_i(1) < D_i(0))$$
+
+--
+
+- The first term is $0$
+- And by no defiers, the last term is $0$ since $P(D_i(1) < D_i(0)) = 0$
+
+$$E[D_i(1) - D_i(0)] = Pr(D_i(1) > D_i(0))$$
+
+
+---
+
+# Interpreting the IV estimand
+
+- Next, the numerator (the ITT). Under the exclusion restriction and randomization:
+
+$$E[Y_i | Z_i = 1] = E\bigg[Y_i(0) + \bigg(Y_i(1) - Y_i(0)\bigg)D_i(1)\bigg]$$
+$$E[Y_i | Z_i = 0] = E\bigg[Y_i(0) + \bigg(Y_i(1) - Y_i(0)\bigg)D_i(0)\bigg]$$
+--
+
+- The difference (with some algebra) is
+
+$$E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0]  = E\bigg[\bigg(Y_i(1) - Y_i(0)\bigg) \times \bigg(D_i(1) - D_i(0)\bigg)\bigg]$$
+
+---
+
+# Interpreting the IV estimand
+
+- Conditioning on the principal strata:
+
+$$= E\bigg[(Y_i(1) - Y_i(0)) \times (0) | (D_i(1) = D_i(0))\bigg] \times P(D_i(1) = D_i(0)) + \\
+ E\bigg[(Y_i(1) - Y_i(0)) \times (1) | (D_i(1) > D_i(0))\bigg] \times  P(D_i(1) > D_i(0)) + \\
+ E\bigg[(Y_i(1) - Y_i(0)) \times (-1) | (D_i(1) < D_i(0))\bigg] \times P(D_i(1) < D_i(0))$$
+ 
+ - Again, first term is zero because $D_i(1) - D_i(0) = 0$, third is zero by "no defiers" and we have
+ 
+$$E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0] =  E\bigg[Y_i(1) - Y_i(0) | D_i(1) > D_i(0)\bigg] \times  P(D_i(1) > D_i(0))$$
+
+- The ITT is the product of a conditional average treatment effect and the proportion of compliers.
+
+---
+
+# The LATE Theorem
+
+- The IV estimand, under our identification assumptions, is a Local Average Treatment Effect (LATE):
+
+$$\frac{E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0]}{E[D_i | Z_i = 1] - E[D_i | Z_i = 0]} = E[Y_i(1) - Y_i(0) | D_i(1) > D_i(0)]$$
+
+- The LATE is a conditional average treatment effect within the *subpopulation* of **compliers**
+- If treatment effects are constant, we can generalize this to the whole sample.
+  - But if effects are heterogeneous, we are not necessarily getting a "representative" treatment effect.
+  
+---
+
+# Better LATE than never?
+
+- How should we interpret the LATE?  
+  - It's not necessarily the quantity we care about - we care about the effect of the treatment in the entire sample.
+--
+
+- Compliers are those compelled to take treatment by our encouragement. Would estimates generalize to those who are less encourageable?
+  - The LATE is design-specific. If we came up with a different instrument, that changes the population on which we're estimating an effect!
+  - What can we do? 
+    - We could describe the distribution of covariates among compliers vs. the population as a whole (Abadie's kappa-weighting).
+
+---
+
+
+# Example: The effect of media on voting
+
+- Gerber, Karlan and Bergan (2009, AEJ:AE) estimate the effect of reading the Washington Post (or Washington Times) on political attitudes and voting behavior.
+  - $Z_i$: Random assignment to receive a free subscription to the Washington Post
+  - $D_i$: Actually subscribing to the Washington Post (as measured by a post-encouragement survey)
+  - $Y_i$: 2005 Turnout (measured in the survey)
+
+--
+- Assumptions:
+  - Assignment to get the free subscription offer is ignorable/exogenous
+  - Getting the free subscription offer affects actual subscriptions (non-zero first stage)
+  - No one would subscribe to the Post if they *didn't* receive the offer but not subscribe if they *did*. (monotonicity/no defiers)
+  - Assignment to get the free subscription offer doesn't affect voting *except through* actually subscribing to the Post (exclusion restriction) 
+
+---
+
+# Example: The effect of media on voting
+
+- First, subset the data to WaPo or control observations that completed the follow-up survey
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(haven)
+library(estimatr)
+```
+
+```{r}
+green <- read_dta("assets/publicdata.dta")
+wapost <- green %>% filter(treatment != "TIMES"&!is.na(getpost)&!is.na(voted))
+```
+
+
+---
+
+# Example: The effect of media on voting
+
+- Is there a first-stage effect?
+
+```{r}
+lm_robust(getpost ~ post, data=wapost)
+```
+
+- About 34 percent of the sample is a "complier" - quite substantial!
+ 
+---
+
+# Example: The effect of media on voting
+
+- Is there an ITT?
+
+```{r}
+lm_robust(voted ~ post, data=wapost)
+```
+
+- ITT is essentially zero.
+ 
+---
+
+# Example: The effect of media on voting
+
+- Compare with the naive OLS estimate
+
+```{r}
+lm_robust(voted ~ getpost, data=wapost)
+```
+
+- Post subscribers are 6pp more likely to vote in the 2005 VA gubernatorial election. 
+  - But is this causal No!
+ 
+---
+
+
+# Example: The effect of media on voting
+
+- Let's estimate the LATE using the Wald estimator 
+
+```{r}
+(mean(wapost$voted[wapost$post == 1]) - mean(wapost$voted[wapost$post == 0]))/(mean(wapost$getpost[wapost$post == 1]) - mean(wapost$getpost[wapost$post == 0]))
+```
+
+- Equivalent to a ratio of regression coefficients
+```{r}
+coef(lm_robust(voted ~ post, data=wapost))[2]/coef(lm_robust(getpost ~ post, data=wapost))[2]
+```
+
+ 
+---
+
+# Example: The effect of media on voting
+
+- We'll talk about inference later, but take note: the SE for the LATE can be much larger than the SE for the ITT
+
+```{r}
+iv_robust(voted ~ getpost | post, data=wapost)
+```
+
+---
+
+# IV in observational studies
+
+- Most applications of IV are not treatment non-compliance.
+- But all follow the same underlying logic.
+  - Treatment of interest is not randomized...but there exists a real or "natural" experiment that is.
+  - And this natural experiment affects the outcome only through its affect on the treatment of interest.
+--
+
+- Examples:
+  - Angrist (1990) - Vietnam draft lottery number as an instrument for the effect of military service on income.
+  - Angrist and Krueger (1991) - Birth quarter as an instrument for education's effect on income.
+  - Acemoglu et. al. (2001) - European settler mortality as an instrument for the effect of institutional quality on GDP per capita.
+  - Kern & Hainmueller (2009) - West German TV signal strength as an instrument for the effect of watching West German TV on support for the East German regime
+
+--
+- Challenges
+  - Exogeneity/ignorability isn't guaranteed
+  - If an instrument has a large effect on your treatment of interest, it probably has an effect on other stuff that could affect the outcome as well (violating the exclusion restriction)
+  
+---
+
+# Discussion: The rainfall instrument
+
+- **Miguel, Satyanth, and Sergenti (2004, JPE)** look at the effect of .maroon[economic growth] on .green[civil conflict] in 41 African countries.
+  - Growth and conflict are confounded (e.g. by political institutions).
+  - Instrument for GDP growth using the annual change in rainfall -- for heavily agrarian countries, rainfall fluctuations determine crop yields which are a large component of GDP.
+  - Observe that changes in rainfall are associated with changes in GDP and negative GDP shocks (instrumented by rainfall) increase civil conflict.
+--
+
+- Does this satisfy the IV identification assumptions?
+  - Exogeneity? Is rainfall as-good-as randomly assigned?
+  - Monotonicity? Do positive rainfall shocks *strictly* boost GDP per capita?
+  - Exclusion restriction? Is rainfall's effect transmitted only through the mechanism the authors define?
+
+---
+
+class: title-slide
+
+# Estimation and inference for IV
+
+
+---
+
+
+
