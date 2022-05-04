@@ -818,9 +818,9 @@ summary(wapo_2sls2)
 
 - Our ratio estimator is consistent 
 
-`$$\hat{\tau}_{\text{IV}} = \frac{\widehat{Cov(Y_i, Z_i)}}{\widehat{Cov(D_i, Z_i)}} \overset{p}{\to} \tau + \frac{Cov(Y_i, U_i)}{Cov(Z_i, D_i)}$$`
+`$$\hat{\tau}_{\text{IV}} = \frac{\widehat{Cov(Y_i, Z_i)}}{\widehat{Cov(D_i, Z_i)}} \overset{p}{\to} \tau + \frac{Cov(U_i, Z_i)}{Cov(D_i, Z_i)}$$`
 
-- Under exogeneity `\(Cov(Y_i, U_i)\)` is zero.
+- Under exogeneity `\(Cov(Z_i, U_i)\)` is zero.
 
 --
 
