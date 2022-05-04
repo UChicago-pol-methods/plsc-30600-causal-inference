@@ -21,7 +21,7 @@ output:
     - Relies on theory to decide which $\mathbf{X}$ to include.
     - DAGs can help here.
   - Lots of estimation strategies
-    - *Stratify* with low-dimensional $\mathbf{X}$
+    - Stratify with low-dimensional $\mathbf{X}$
     - IPTW to eliminate treatment-covariate relationship, regression to model the outcome-covariate relationship.
     - Matching to reduce model dependence.
       - Or consider more modern flexible modelling techniques for $E[Y_i(d) | X_i]$
@@ -35,12 +35,12 @@ output:
   - "Instrumental variables" designs are one way of dealing with this 
 --
 
-  - We can identify *an* average treatment effect if...
+  - We can identify *some* average of treatment effects if...
     - There *does* exist an ignorable or conditionally ignorable **instrument** which...
     - ...has a monotonic effect on the treatment...
     - ...and has no effect on the outcome *except* through its effect on the treatment.
 --
-  - This lets us identify the "Local Average Treatment Effect"
+  - What's the average? The "Local Average Treatment Effect"
     - Average effect among those who are *moved* to take treatment by the instrument
     
 
@@ -81,6 +81,7 @@ $$
 
 - We can first just change the question - instead of the effect of **treatment**, we can make our estimand the effect of being **assigned to treatment**.
 - Our estimator for the ITT is just the difference in means between the $Z_i = 1$ and $Z_i = 0$ arms
+
 $$\hat{\tau}_{\text{ITT}} = \hat{E}[Y_i | Z_i = 1] - \hat{E}[Y_i | Z_i = 0]$$
 
 - Identified under randomization of $Z_i$ even if $D_i$ is not randomized.
@@ -460,6 +461,8 @@ $$\frac{E[Y_i | Z_i = 1] - E[Y_i | Z_i = 0]}{E[D_i | Z_i = 1] - E[D_i | Z_i = 0]
 library(tidyverse)
 library(haven)
 library(estimatr)
+library(ivmodel)
+options(digits=3)
 ```
 
 ```{r}
@@ -577,5 +580,439 @@ class: title-slide
 
 ---
 
+# IV with constant effects
+
+- Let's consider a linear model for the potential outcomes
+
+$$Y_i(d) = \alpha + \tau d + \gamma U_i + \eta_i$$
+
+--
+
+- If we could control for $U_i$, we could estimate the regression to get an estimate of $\tau$
+
+$$Y_i = \alpha + \tau D_i + \gamma U_i + \eta_i$$
+
+- But we can't - and regressing $Y_i$ on $D_i$ alone will not give a consistent estimator of $\tau$ since $Cov(\gamma U_i + \eta_i, D_i) \neq 0$
+
+---
+
+# IV with constant effects
+
+- Suppose $Z_i$ is an instrument that is exogeneous and satisfies the exclusion restriction
+
+$$Cov(\gamma U_i + \eta_i, Z_i) = 0$$
+--
+
+- Then, we can identify $\tau$
+
+$$\begin{align*}
+Cov(Y_i, Z_i) &= Cov(\alpha + \tau D_i + \gamma U_i + \eta_i, Z_i)\\
+&= Cov(\alpha, Z_i) + Cov(\tau D_i, Z_i) + Cov(\gamma U_i + \eta_i, Z_i)\\
+&= \tau Cov( D_i, Z_i)
+\end{align*}$$
+
+--
+
+- Which gives us our IV estimand
+
+$$\tau = \frac{Cov(Y_i, Z_i)}{Cov(D_i, Z_i)}$$
+
+---
+
+# IV estimator
+
+- We can estimate $\tau$ by plugging in the sample quantities.
+
+$$\hat{\tau_{\text{IV}}} = \frac{\widehat{Cov(Y_i, Z_i)}}{\widehat{Cov(D_i, Z_i)}}$$
+--
+
+- This also can be written as a ratio of two regression coefficients
+
+$$\hat{\tau_{\text{IV}}} = \frac{\widehat{Cov(Y_i, Z_i)}/\widehat{Var(Z_i)}}{\widehat{Cov(D_i, Z_i)}/\widehat{Var(Z_i)}}$$
+
+- Denominator: "First stage": Regression of $D_i$ on $Z_i$
+- Numerator: "Reduced form": Regression of $Y_i$ on $Z_i$
+
+---
+
+# 2SLS - Including covariates
+
+- What if ignorability of $Z_i$ only holds conditional on $X_i$ -- or we want to include $X_i$ as predictors to improve precision.
+- We'll assume a particular structure for the outcome and treatment models
+
+$$Y_i = X_i^{\prime}\beta + \tau D_i + \epsilon_i$$
+$$D_i = X_i^{\prime}\alpha + \gamma Z_i + \nu_i$$
+
+- Assume the $X_i$ are exogenous but not excluded (appear in both equations). $D_i$ is still endogenous so we can't get the treatment effect by just regressing outcome on treatment and covariates.
+
+- Can we get an expression for $Y_i$ in the form of $Z_i$ alone?
+
+---
+
+# 2SLS - Including covariates
+
+- Substitute in for $D_i$
+
+$$\begin{align*}
+Y_i &= X_i^{\prime}\beta + \tau\left[X_i^{\prime}\alpha + \gamma Z_i + \nu_i\right] + \epsilon_i\\
+ &= X_i^{\prime}\beta + \tau\left[X_i^{\prime}\alpha + \gamma Z_i\right] + [\tau\nu_i + \epsilon_i]\\
+  &= X_i^{\prime}\beta + \tau E[D_i | X_i, Z_i] + \epsilon_i^{*}\\
+\end{align*}$$
+
+--
+
+- We can identify $\tau$ by regressing $Y_i$ on $X_i$ and the **fitted values** from a regression of $D_i$ on $X_i$ and the instrument $Z_i$.
+- **Intuition** -- we want to only use the variation in $D_i$ that is driven by the **exogenous** factor $Z_i$. 
+
+---
+
+# 2SLS - Including covariates
+
+- You can also still get the ratio form of the IV estimator
+
+$$\begin{align*}
+Y_i &= X_i^{\prime}\beta + \tau\left[X_i^{\prime}\alpha + \gamma Z_i + \nu_i\right] + \epsilon_i\\
+ &= X_i^{\prime}(\beta + \tau + \alpha) + \tau \gamma Z_i + [\tau\nu_i + \epsilon_i]\\
+\end{align*}$$
+
+- The coefficient on $Z_i$ in the reduced form regression is $\tau \gamma$ 
+- The coefficient on $Z_i$ in the first-stage is $\gamma$.
+- So the ratio of the reduced form to the first-stage regression is $\tau$.
+
+---
+
+# Two-stage least squares
+
+- **First stage** - Regress $D_i$ on $X_i$ and $Z_i$. Get the fitted values $\hat{D_i}$
+
+$$\hat{D_i} =  X_i^{\prime}\hat{\alpha} + \hat{\gamma} Z_i  $$
+
+- **Second stage** - Regress $Y_i$ on $X_i$ and fitted values $\hat{D_i}$
+
+$$\hat{Y_i} = X_i^{\prime}\hat{\beta} + \hat{\tau} \hat{D_i}$$
+
+--
+
+- The coefficient on the fitted values is the IV estimate 
+  - But, the standard errors will be wrong - Why?
 
 
+---
+
+# General 2SLS
+
+- A more general matrix-algebra-y way of representing 2SLS is with the linear model
+
+$$\mathbf{Y} = \mathbf{X}\beta + \epsilon$$
+where $\mathbf{X}$ is an $n$ by $K$ matrix of endogenous variables and exogenous covariates.
+
+--
+
+- $\mathbf{Z}$ is an $n$ by $L$ matrix of exogenous instruments and exogenous covariates.
+
+--
+
+- Key assumptions:
+  - $E[\epsilon_i | \mathbf{Z}] = 0$ (instruments are exogenous)
+  - $\mathbf{Z}$ is excluded from the outcome model
+
+---
+
+# General 2SLS
+
+- We define a projection matrix $\mathbf{P}_{\mathbf{z}} = \mathbf{Z}(\mathbf{Z}^{\prime}\mathbf{Z})^{-1}\mathbf{Z}^{\prime}$
+- The "fitted values" from the first stage can be written as 
+
+$$\hat{\mathbf{X}} = \mathbf{P}_{\mathbf{z}} \mathbf{X}$$
+- Two features of the projection matrix: $\mathbf{P}_\mathbf{z}^{\prime} = \mathbf{P}_\mathbf{z}$ and $\mathbf{P}_\mathbf{z}\mathbf{P}_\mathbf{z} = \mathbf{P}_\mathbf{z}$
+--
+
+- So our 2SLS IV estimator can be written as 
+
+$$\begin{align*}
+\hat{\beta}_{\text{IV}} &= (\hat{\mathbf{X}}^{\prime}\hat{\mathbf{X}})^{-1}\hat{\mathbf{X}}^{\prime}\mathbf{Y}\\
+&=  ((\mathbf{P}_{\mathbf{z}} \mathbf{X})^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}(\mathbf{P}_{\mathbf{z}} \mathbf{X})^{\prime}\mathbf{Y}\\
+&=  (\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}}\mathbf{Y}
+\end{align*}$$
+
+- We have an expression for our IV estimator $\hat{\beta}_{\text{IV}}$ purely in terms of $X$ and $Z$
+
+---
+
+# Variance estimation
+
+- Note that the residuals are $\hat{\epsilon} = \mathbf{Y} - \mathbf{X}\hat{\beta}_{\text{IV}}$. We can plug these in to our usual sandwich estimator for heteroskedasticity-robust SEs
+
+- Our sandwich estimator can be written as
+
+$$\widehat{Var(\hat{\beta}_{\text{IV}})} = (\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}}[\text{diag}(\hat{\epsilon}_i^2)]\mathbf{P}_{\mathbf{z}} \mathbf{X}(\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}$$
+
+- This is how any conventional 2SLS routine in R will calculate the standard errors.
+
+---
+
+# Illustrating 2SLS
+
+- Recall our Gerber, Karlan and Bergan (2009, AEJ:AE) experiment
+  - $Z_i$: Random assignment to receive a free subscription to the Washington Post
+  - $D_i$: Actually subscribing to the Washington Post (as measured by a post-encouragement survey)
+  - $Y_i$: 2005 Turnout (measured in the survey)
+  - $X_i$: Gender, Age
+  
+- Let's load and subset
+
+```{r}
+green <- read_dta("assets/publicdata.dta")
+wapost <- green %>% filter(treatment != "TIMES"&!is.na(getpost)&!is.na(voted)&!is.na(Bfemale)&!is.na(reportedage))
+```
+
+---
+
+# Illustrating 2SLS
+
+- Our first stage regresses subscription on assignment + covariates
+
+```{r}
+first_stage <- lm_robust(getpost ~ post + Bfemale + reportedage , data= wapost)
+summary(first_stage)
+```
+
+---
+
+# Illustrating 2SLS
+
+- Let's actually run 2SLS - I like two routines: `iv_robust` in `estimatr` (does 2SLS with robust SEs) and `ivmodel` in `ivmodel` (does robust 2SLS *and* weak-instrument robust tests + other diagnostics)
+
+```{r}
+wapo_2sls <- iv_robust(voted ~ getpost  + Bfemale + reportedage | post + Bfemale + reportedage, data= wapost)
+summary(wapo_2sls)
+```
+---
+
+# Illustrating 2SLS
+
+```{r}
+wapo_2sls2 <- ivmodelFormula(voted ~ getpost  + Bfemale + reportedage | post + Bfemale + reportedage, data= wapost, heteroSE=T)
+summary(wapo_2sls2)
+```
+
+---
+
+# The weak instrument problem
+
+- Our ratio estimator is consistent 
+
+$$\hat{\tau}_{\text{IV}} = \frac{\widehat{Cov(Y_i, Z_i)}}{\widehat{Cov(D_i, Z_i)}} \overset{p}{\to} \tau + \frac{Cov(Y_i, U_i)}{Cov(Z_i, D_i)}$$
+
+- Under exogeneity $Cov(Y_i, U_i)$ is zero.
+
+--
+
+- However, when there are small violations of exogeneity, a weak instrument will amplify them.
+- More generally, with a weak instrument, our t-ratio hypothesis tests assuming asymptotic normality will have **incorrect** type-1 error rates.
+  - Why? Distributions of ratios are poorly behaved.
+  
+---
+
+# The weak instrument problem
+
+- Let's use a simulation to see how bad the bias can be in IV versus just a simple OLS regression of outcome on treatment under unobserved confounding.
+--
+
+- Let $U_i \sim \mathcal{N}(0, 1)$ be an unobserved confounder. $Z_i \sim \text{Bern}(.5)$ is an **exogenous** instrument.
+--
+
+- The probability of treatment is modeled via a logit
+$$\text{log}\bigg(\frac{P(D_i = 1 | Z_i, U_i)}{1-P(D_i = 1 | Z_i, U_i)}\bigg) =  \gamma Z_i + U_i$$
+
+- $\gamma$ here captures the relationship between the exogenous instrument $Z_i$ and the treatment
+--
+
+- The outcome is a function of $U$ and a mean zero error term $\epsilon_i$ only, so the true treatment effect is $0$
+
+$$Y_i = U_i + \epsilon_i$$
+
+---
+
+# The weak instrument problem
+
+- Let's see how the Wald estimator performs when we have a pretty large effect of $Z_i$ on $D_i$: $\gamma = 2$ and $N = 1000$
+
+```{r, echo=F}
+library(ivmodel)
+set.seed(60639)
+
+nIter <- 1000
+naive <- rep(NA,nIter)
+IV <- rep(NA, nIter)
+firststage <- rep(NA, nIter)
+firststageF <- rep(NA,nIter)
+  
+for (i in 1:nIter){
+  N <- 1000
+  U <- rnorm(N)
+  Z <- rbinom(N, 1, .5)
+  FS <- 2
+  prD <- 1/(1 + exp(-(FS*Z + U)))
+  D <- rbinom(N, 1, prD)
+  Y <- U + rnorm(N)
+  naive[i] <- coef(lm(Y ~ D))[2]
+  IV[i] <- coef(lm(Y ~ Z))[2]/coef(lm(D ~ Z))[2]
+  firststage[i] <- coef(lm(D~Z))[2]
+  firststageF[i] <- summary(lm(D~Z))$fstatistic[1]
+}
+```
+
+```{r}
+
+## First stage effect
+mean(firststage)
+
+## F-statistic from the first stage
+mean(firststageF)
+
+## Bias of the naive OLS Y ~ X
+mean(naive)
+
+## Bias of IV
+mean(IV)
+
+```
+
+---
+
+# The weak instrument problem
+
+- Sampling distribution of the naive OLS estimator
+
+```{r, echo=F, fig.align="center"}
+hist(naive, main="OLS")
+abline(v=mean(naive), col="blue", lty=2)
+abline(v=0, col="red", lty=2)
+```
+
+---
+
+# The weak instrument problem
+
+- Sampling distribution of the IV estimator
+
+```{r, echo=F, fig.align="center"}
+hist(IV, main="Instrumental Variables")
+abline(v=mean(IV), col="blue", lty=2)
+abline(v=0, col="red", lty=2)
+```
+
+---
+
+
+# The weak instrument problem
+
+- Now, what happens when our instrument is weak: $\gamma = .2$ and $N = 1000$
+
+```{r, echo=F}
+library(ivmodel)
+set.seed(60639)
+
+nIter <- 1000
+naive <- rep(NA,nIter)
+IV <- rep(NA, nIter)
+firststage <- rep(NA, nIter)
+firststageF <- rep(NA,nIter)
+  
+for (i in 1:nIter){
+  N <- 1000
+  U <- rnorm(N)
+  Z <- rbinom(N, 1, .5)
+  FS <- .2
+  prD <- 1/(1 + exp(-(FS*Z + U)))
+  D <- rbinom(N, 1, prD)
+  Y <- U + rnorm(N)
+  naive[i] <- coef(lm(Y ~ D))[2]
+  IV[i] <- coef(lm(Y ~ Z))[2]/coef(lm(D ~ Z))[2]
+  firststage[i] <- coef(lm(D~Z))[2]
+  firststageF[i] <- summary(lm(D~Z))$fstatistic[1]
+}
+```
+
+```{r}
+
+## First stage effect
+mean(firststage)
+
+## F-statistic from the first stage
+mean(firststageF)
+
+## Bias of the naive OLS Y ~ X
+mean(naive)
+
+## Bias of IV
+mean(IV)
+
+```
+
+---
+
+# The weak instrument problem
+
+- Sampling distribution of the naive OLS estimator
+
+```{r, echo=F, fig.align="center"}
+hist(naive, main="OLS")
+abline(v=mean(naive), col="blue", lty=2)
+abline(v=0, col="red", lty=2)
+```
+
+---
+
+# The weak instrument problem
+
+- Sampling distribution of the IV estimator
+
+```{r, echo=F, fig.align="center"}
+hist(IV, main="Instrumental Variables")
+abline(v=mean(IV), col="blue", lty=2)
+abline(v=0, col="red", lty=2)
+```
+
+---
+
+# The weak instrument problem
+
+- When is an instrument too weak?
+--
+
+- **Classic result:** Staiger and Stock (1997), Stock and Yogo (2005) use first stage F-statistic thresholds
+  - $\leadsto$ heuristic of first-stage F-statistic below 10.
+- **Recently:** Lee, Moreira, McCrary, Porter (2020) -- If we want to use the F-statistic as a screen then we actually need $F > 104.7$
+--
+
+- Suggestions:
+  - **Anderson-Rubin (1949)** test statistic in addition to 2SLS t-ratio inference (with a single instrument) - correct coverage/rejection levels even under weak instruments.
+  - Angrist and Pischke (2009) - with "just-identified" IV (number of instruments = number of endogenous variables) bias is usually overwhelmed by the large standard errors.
+
+---
+
+# Conclusion
+
+- Instrumental variables lets us leverage *alternative* sources of randomness to learn about an otherwise confounded causal relationship.
+--
+
+- An instrument:
+  - Affects treatment
+  - Doesn't affect the outcome except through treatment
+  - Is ignorable w.r.t the outcome.
+--
+
+- LATE theorem: The IV estimand is the ATE among those who would take treatment due to the instrument.
+  - With continuous treatment/instrument - a weighted average of LATEs (Angrist and Imbens, 1995)
+  - With covariates - a weighted average of covariate-specific LATEs
+  - But be careful with this interpretation when the model is not fully saturated (Słoczyński, 2022)
+
+--
+
+- Statistical inference is tricky
+  - Beware weak instruments - typical large-sample asymptotics do poorly when instruments are irrelevant.
+  - Consider weak-instrument robust tests (Anderson-Rubin)
+
+---
