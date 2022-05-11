@@ -391,11 +391,409 @@ tidy(twfe_reg) %>% filter(term == "treat")
 
 ---
 
+# DiD with Covariates
+
+- What if parallel trends holds only conditional on a set of pre-treatment covariates
+
+$$\underbrace{\left\{E[Y_{i1}(0) - Y_{i0} | D_i = 1, X_i = x] \right\}}_{\text{Average counterfactual trend among treated}} = \underbrace{\left\{E[Y_{i1} - Y_{i0}| D_i = 0, X_i = x]\right\}}_{\text{Average trend among controls}}$$
+
+--
+
+- We can include the covariates in the regression or TWFE
+  - But beware of unit-constant covariates in TWFE - they get soaked up by the unit fixed effects
+--
+
+- Can we adjust without strong assumptions on the outcome model? Abadie (2005) shows that an IPTW estimator can identify the ATT under conditional parallel trends:
+
+$$E[Y_{i1}(1) - Y_{i1}(0)| D_i = 1] = E\left[\frac{(Y_{i1} - Y_{i0})}{P(D_i = 1)} \times \frac{D_i - P(D_i = 1 | X_i)}{1 - P(D_i = 1 | X_i)}\right]$$
+- **Intuiution**: Treated units get a constant weight. Control units are reweighted to match the covariate distribution among the treateds.
+
+---
+
+# Example: Card and Krueger (1994, AER)
+
+- Suppose we thought that parallel trends in Card and Krueger (1994) only held conditional on the type of fast food restaurant
+
+```{r, echo=T, warning=F, message=F}
+# 1=Burger King; 2=KFC; 3=Roy Rogers; 4=Wendy's
+minwage %>% group_by(STATE) %>% summarize(mean(CHAIN == 1), mean(CHAIN==2), mean(CHAIN == 3), mean(CHAIN ==4))
+
+# Fit a propensity score model
+weight_model <- glm(STATE ~ as.factor(CHAIN), data=minwage, family=binomial(link="logit"))
+
+# Predict weights
+minwage$e <- predict(weight_model, type="response")
+minwage$did_wt <- (1/mean(minwage$STATE)) * ((minwage$STATE -minwage$e)/(1-minwage$e))
+
+```
+
+
+---
+
+# Example: Card and Krueger (1994, AER)
+
+
+```{r, echo=T, warning=F, message=F}
+# Point estimate
+mean(minwage$CHG_EMPFT*minwage$did_wt)
+
+# Slight fix of the weights -> Hajek estimator
+minwage$did_wt_reg <- minwage$did_wt*minwage$STATE - minwage$did_wt*(1-minwage$STATE)
+lm_robust(CHG_EMPFT ~ STATE, data=minwage, weight=did_wt_reg)
+
+```
+
+
+---
+
+# Example: Card and Krueger (1994, AER)
+
+
+```{r, echo=T, warning=F, message=F}
+# Bootstrap
+set.seed(60637)
+niter <- 1000
+boot_est <- rep(NA, niter)
+for(i in 1:niter){
+  boot_minwage <- minwage[sample(1:nrow(minwage), nrow(minwage), replace=T),]
+  # Fit a propensity score model
+  weight_model_boot <- glm(STATE ~ as.factor(CHAIN), data=boot_minwage, family=binomial(link="logit"))
+  
+  # Predict weights
+  boot_minwage$e <- predict(weight_model_boot, type="response")
+  boot_minwage$did_wt <- (1/mean(boot_minwage$STATE)) * ((boot_minwage$STATE - boot_minwage$e)/(1-boot_minwage$e))
+  
+  # Point est
+  boot_est[i] <- mean(boot_minwage$CHG_EMPFT*boot_minwage$did_wt)
+}
+#Bootstrap 95\% CI
+quantile(boot_est, c(.025, .975))
+```
+
+
+---
+
 class: title-slide
 
 # Difference-in-differences with many time periods
 $$
   \require{cancel}
 $$
+
+---
+
+# DiD with no staggered adoption
+
+- Suppose that instead of having two time periods, we have $T$ post-treatment periods and $Q$ pre-treatment periods
+  - Normalize $t$ so that treatment starts at $t=1$ for the treated units and the control units never initiate treatment.
+  - Still assume two treatment groups $D_i = 1$ and $D_i = 0$.
+--
+
+- Does TWFE still work here? 
+
+$$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
+
+- Yes! - $\tau$ is an average of the ATTs in the post-treatment periods $\{0, 1, 2, \dotsc, T\}$
+  - We can imagine collapsing the dataset to a standard 2x2 diff-in-diff by averaging pre-/post-treatment outcomes among the treated and control gropus.
+--
+
+- Can we do more with the regression?
+
+---
+
+# Pre-trends
+
+- We might be concerned that our parallel trends assumption is violated. We can't *test* the parallel trends assumption directly, but we might be able to use the pre-treatment periods to provide evidence against the parallel trends assumption.
+- Suppose parallel trends holds generally from any period $t^{\prime}$ to $t$ -- what are the implications of this?
+
+$$E[Y_{it}(0) - Y_{it^{\prime}}(0)| D_i = 1] = E[Y_{it}(0) - Y_{it^{\prime}}(0) | D_i = 0]$$
+  
+--
+- **Placebo/Pre-trends test**
+
+$$\hat{\tau} = \underbrace{\left\{\hat{\mathbb{E}}[Y_{i0} | D_i = 1] - \hat{\mathbb{E}}[Y_{i0} | D_i = 0]\right\}}_{\text{Difference-in-means in time 0}} -  \underbrace{\left\{\hat{\mathbb{E}}[Y_{i-1} | D_i = 1] - \hat{\mathbb{E}}[Y_{i-1} | D_i = 0]\right\}}_{\text{Difference-in-means in time -1}}$$
+
+- If parallel trends holds then this "placebo" difference-in-differences should be zero.
+
+---
+
+# Lags and leads plot
+
+- It's extremely common to fit a "dynamic" specification of the two-way fixed effects regression to estimate both the placebos and the effects for each distinct post-treatment period
+
+
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D_i \mathcal{I(t = l)} + \sum_{l=1}^{T} \tau_l D_i \mathcal{I(t = l)} + \epsilon_{it}$$
+
+--
+
+- Alternatively, we can write this as
+
+
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D^{l}_{it} + \sum_{l=1}^{T} \tau_l D^{l}_{it} + \epsilon_{it}$$
+
+where $D_{it}^{l}$ is a dummy variable for whether a unit $i$ at time $t$ is $l$ periods away from initiating treatment (always $0$ for never-treated units)
+
+--
+
+- When all (but one) of the leads and lags are included, the estimated coefficients are equivalent to the 2x2 DiD from period $l$ to period $0$ 
+  - For the pre-treatment periods these are placebos ($\gamma$)
+  - For the post-treatment periods these are treatment effects for time $l$ ($\tau$)
+
+---
+
+# Example: Paglayan (2019, APSR)
+
+- Paglayan (2019) examines whether the implementation of mandatory collective barganing in some states affects state expenditures on education
+  - Cross-sectionally, states with collective bargaining laws spend more on education
+  - But is this just selection-on-unobservables?
+--
+
+- **Design**: Look at the roll-out of collective bargaining laws over time in U.S. states
+  - Eliminate the baseline differences in spending across states using a DiD approach.
+
+--
+```{r, message=F, warning=F}
+library(panelView)
+union <- read_dta("assets/Paglayan Dataset.dta")
+union <- union %>% filter(!is.na(studteachratio)&State !="DC"&State != "WI"&year>1959&year<1997)
+table(union$YearCBrequired)
+```
+
+---
+
+
+# Example: Paglayan (2019, APSR)
+
+- Collective bargaining laws were rolled out in a *staggered* fashion
+--
+```{r, message=F, warning=F, echo=F, fig.align="center", fig.height=7, fig.width=9}
+library(panelView)
+panelview(data=union, D="CBrequired_SY", index=c("State", "year"), axis.adjust=T, axis.lab = "time", by.timing=T)
+```
+
+---
+
+# Example: Paglayan (2019, APSR)
+
+- Let's focus on just the 1970 cohort versus the never-treated for illustration
+
+```{r, message=F, warning=F}
+union_1970 <- union %>% filter(is.na(YearCBrequired)|YearCBrequired == 1970)
+union_1970$treated <- as.numeric(!is.na(union_1970$YearCBrequired))
+
+# First, the TWFE
+lm_robust(studteachratio ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State), data=union_1970, cluster=State)
+
+```
+
+---
+
+# Example: Paglayan (2019, APSR)
+
+- Now the "event study" plot 
+
+```{r, message=F, warning=F}
+union_1970$year_relevel <- relevel(as.factor(union_1970$year), ref="1969")
+
+# Now let's do the "event study" regression
+event_study <- tidy(lm_robust(studteachratio ~ treated*as.factor(year_relevel), fixed_effects = ~ as.factor(year) + as.factor(State), data=union_1970, cluster=State))
+event_study <- event_study %>% filter(!is.na(estimate))
+event_study$yearEst <- as.numeric(str_remove(event_study$term, fixed("treated:as.factor(year_relevel)")))
+event_study <- event_study %>% select(yearEst, estimate, conf.low, conf.high)
+event_study <- rbind(event_study, data.frame(yearEst = 1969, estimate = 0, conf.low=0, conf.high=0))
+
+```
+
+---
+
+# Example: Paglayan (2019, APSR)
+
+```{r, echo=F, message=F, warning=F, fig.align="center", fig.height=7}
+event_study %>% ggplot(aes(x=as.numeric(yearEst), y = estimate, ymin=conf.low, ymax=conf.high)) + geom_point() + geom_pointrange() +
+  xlab("Year") + ylab("Estimated effect on student-teacher ratio") + geom_vline(xintercept = 1969.5, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  theme_bw()
+```
+
+
+---
+
+# DiD with staggered adoption
+
+- What happens when units take treatment at different times
+  - Policies are rolled out by states over time (early vs. late adopters)
+  - Countries sign on to treaties at different periods
+- We need a new definition of the "Average Treatment Effect on the Treated"
+--
+
+- Notation
+  - Assume $T$ total periods indexed by $t = 1, 2, \dotsc, T$
+  - Each unit initiates treatment at some time $G_i$, $D_{it}$ denotes whether a unit is treated at time $t$
+  - In the staggered design, we assume units don't leave treatment once initiated.
+  - Never treated units have $G_i = \infty$
+--
+
+- Define the potential outcomes in terms of "group" or "cohort" membership
+
+$$Y_{it}(g) = Y_{it} \text{ if } G_i = g$$
+
+
+---
+
+# DiD with staggered adoption
+
+- Building block: **"Group-Time" ATT** (Callaway and Sant'anna)
+
+$$\tau_{gt} = E[Y_{it}(g) - Y_{it}(\infty) | G_i = g]$$
+
+--
+- What would have happened to group $g$ at time $t$ had it never received treatment
+
+--
+
+- **Assumption**: No reverse causality/anticipation
+
+$$Y_{it}(g) = Y_{it}(\infty) \forall t < g$$
+
+- The potential outcomes among the "not-yet-treated" at time $t$ are the same as the "never-treated" at time $t$
+--
+
+- **Assumption**: "General" parallel trends. For all $t \neq t^{\prime}$ and $g \neq g^{\prime}$
+
+$$E[Y_{it}(\infty) - Y_{it^{\prime}}(\infty)| G_i = g] - E[Y_{it}(\infty) - Y_{it^{\prime}}(\infty)| G_i = g^{\prime}]$$
+
+- Somewhat weaker version allowed in Callaway and Sant'anna that only assumes parallel trends w.r.t the never-treateds $G_i = \infty$
+
+
+---
+
+# DiD with staggered adoption
+
+- Can easily estimate any group-time ATT via a 2x2 diff-in-diff
+
+$$\hat{\tau_{gt}} = \underbrace{\frac{1}{N_g} \sum_{i: G_i = g} Y_{it} - \frac{1}{N_{g>t}} \sum_{i: G_i > t} Y_{it}}_{\text{Mean difference between group g and not-yet-treated at t}} - \underbrace{\frac{1}{N_g} \sum_{i: G_i = g} Y_{i,g-1} - \frac{1}{N_{g>t}} \sum_{i: G_i > t} Y_{i, g-1}}_{\text{Mean difference between group g and not-yet-treated at g-1}}$$
+--
+
+- Can in principle use *more* pre-treatment periods (everything from 1 to $g-1$)
+  - Callaway and Sant'anna `did` package just uses one but allows a user to use earlier time periods if there might be anticipation.
+
+---
+
+# Visualizing group effects
+
+```{tikz, echo=F, fig.align="center"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}[scale=.6]
+\draw (-3, 3) node (l0) {Unit};
+\draw (-3, 2) node (l1) {$1$};
+\draw (-3, 1) node (l2) {$2$};
+\draw (-3, 0) node (l3) {$3$};
+\draw (-3, -1) node (l4) {$4$};
+\draw (-3, -2) node (l5) {$5$};
+
+\draw (-1, 4) node (t0) {Time};
+\draw (-2, 3) node (t1) {$0$};
+\draw (-1, 3) node (t1) {$1$};
+\draw (0, 3) node (t1) {$2$};
+
+\draw (-2.5, 4.5) -- (-2.5, -2.5);
+\draw (-3.5, 2.5) -- (0.5, 2.5);
+
+\draw (-2, 2) node (a1t1) {$0$};
+\draw (-1, 2) node (a1t2) {$1$};
+\draw (0, 2) node (a1t3) {$1$};
+
+
+\draw (-2, 1) node (a2t1) {$0$};
+\draw (-1, 1) node (a2t2) {$1$};
+\draw (0, 1) node (a2t3) {$1$};
+
+
+\draw (-2, 0) node (a3t1) {$0$};
+\draw (-1, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$1$};
+
+
+\draw (-2, -1) node (a4t1) {$0$};
+\draw (-1, -1) node (a4t2) {$0$};
+\draw (0, -1) node (a4t3) {$1$};
+
+
+\draw (-2, -2) node (a5t1) {$0$};
+\draw (-1, -2) node (a5t2) {$0$};
+\draw (0, -2) node (a5t3) {$0$};
+
+\node[draw=black, fit=(a1t1) (a1t2) (a1t3) (a2t1) (a2t2) (a2t3), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+\node[draw=red, fit=(a3t1) (a3t2) (a3t3) (a4t1) (a4t2) (a3t3), inner sep=.2ex, line width = 1.5, dashed] (cohort2) {};
+
+\end{tikzpicture}
+ 
+```
+
+---
+
+# Visualizing group effects
+
+
+```{r, message=F, warning=F, echo=F, fig.align="center", fig.height=7, fig.width=9}
+library(panelView)
+panelview(data=union, D="CBrequired_SY", index=c("State", "year"), axis.adjust=T, axis.lab = "time", by.timing=T)
+```
+
+---
+
+# Aggregating group-time ATTs
+
+- Any given group-time ATT is going to probably be high-variance.
+  - We're probably more interested in some *overall* effect of treatment or an *average* of group-time ATTs.
+--
+
+- But how should we aggregate?
+  - Average across $t \ge g$ in each group, then average across $g$? - Non-uniform weights on time
+  - Average across each time period uniformly? - Non-uniform weights on group
+  - Average all group-time effects where $g = t$ or $g = t-1$, (one-period out, two-periods out, etc...)
+--
+
+- Lots of substantively different estimands: the choice is up to you!
+  - See Callaway and Sant'anna (2021) for more on this.
+
+---
+
+# Two-way FE w/ staggered adoption
+
+- Does two-way fixed effects give us something like an average of group-time ATTs?
+  - Not necessarily, the weighting is weird (variance-weighting from regression)
+  - And if treatment effects persist over time, we'll get bias (Goodman-Bacon)
+--
+
+- **Intuition**: Frisch-Waugh-Lovell
+
+$$\hat{\tau} = \frac{\sum_{i,t} (D_{it} - \hat{D_{it}}) Y_{it}}{\sum_{i,t}(D_{it} - \hat{D_{it}})^2} $$
+- *Two* sources of bias
+  - External validity -- Groups with more ``variable" treatment timings (e.g. groups that start treatment towards the middle of the time-series) receive more weight.
+  - Internal validity - 2-way FE uses *future* periods where two units share the same treatment status as part of the second ``de-biasing" difference. If effects persist over time these are not going to be equal to the selection bias.
+
+---
+
+# Summary
+
+- Diff-in-diff with two periods, two treatment groups
+  - Parallel trends assumption - sensitive to transformations of the outcome (e.g. logs vs. levels)
+  - Straightforward non-parametric estimator - can weight + use regression if parallel trends holds conditionally
+--
+
+- Diff-in-diff with staggered adoption
+  - Can break down into a bunch of 2x2 DiDs for different treatment *groups* and *time* periods
+  - But beware of naive 2-way fixed effects - "bad" differences
+  - **Suggestion**: Imputation estimators - fit a model in the controls
+--
+
+- Diff-in-diff w/ arbitrary treatment histories
+  - You're going to need some modeling assumptions!
 
 ---
