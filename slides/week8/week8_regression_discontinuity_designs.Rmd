@@ -405,3 +405,391 @@ house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=as.numeric(y>.5), colour=as.
 ```
 
 ---
+
+# Local polynomial regression
+
+- How does changing the bandwidth affect the local linear estimate?
+- Bandwidth of $0.05$:
+
+```{r}
+lm_robust(y ~ d + d*I(x-0), data=house %>% filter(abs(x) < .05))
+```
+
+--
+
+- Bandwidth of $.2$:
+
+```{r}
+lm_robust(y ~ d + d*I(x-0), data=house %>% filter(abs(x) < .2))
+```
+
+---
+
+# Local polynomial regression
+
+```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) + 
+  stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x, data=house %>% filter(abs(x) < .05)) +
+  geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.05, lty=3) + geom_vline(xintercept=.05, lty=3) + theme_bw() + theme(legend.position="none") + 
+  xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
+
+```
+
+---
+
+# Local polynomial regression
+
+```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) + 
+  stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x, data=house %>% filter(abs(x) < .2)) +
+  geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.2, lty=3) + geom_vline(xintercept=.2, lty=3) + theme_bw() + theme(legend.position="none") + 
+  xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
+
+```
+
+---
+
+# Kernel weights
+
+.center[<img src="assets/cattaneo_kernel.png" alt = "kernels", height="500px">]
+
+---
+
+# Kernel weights
+
+- What happens if we use a triangular kernel rather than a uniform kernel (at bw = .1)
+  - For the local linear regression?
+
+```{r}
+house$kernelwt <- (1 - abs((house$x - 0)/.1))*as.numeric(abs(house$x) < .1)
+# Unweighted
+lm_robust(y ~ d + d*I(x-0), data=house %>% filter(abs(x) < .1))
+# Weighted
+lm_robust(y ~ d + d*I(x-0), data=house %>% filter(abs(x) < .1), weight=kernelwt)
+```
+
+---
+
+
+# Kernel weights
+
+- How about for the quadratic?
+
+```{r}
+# Unweighted
+lm_robust(y ~ d + d*I(x-0) + d*I((x-0)^2), data=house %>% filter(abs(x) < .1))
+# Weighted
+lm_robust(y ~ d + d*I(x-0)+ d*I((x-0)^2), data=house %>% filter(abs(x) < .1), weight=kernelwt)
+```
+
+---
+
+# Kernel weights
+
+- Quadratic: Uniform kernel 
+
+```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) + 
+  stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x + I(x^2), data=house %>% filter(abs(x) < .1)) +
+  geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.1, lty=3) + geom_vline(xintercept=.1, lty=3) + theme_bw() + theme(legend.position="none") + xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
+```
+
+---
+
+# Kernel weights
+
+- Quadratic: Triangular kernel
+
+```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d), weight=kernelwt)) + 
+  stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x + I(x^2), data=house %>% filter(abs(x) < .1)) +
+  geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.1, lty=3) + geom_vline(xintercept=.1, lty=3) + theme_bw() + theme(legend.position="none") + xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
+
+```
+
+---
+
+# Bandwidth selection
+
+- General criteria for how to choose $h$
+  - Large $h$: More bias, lower variance
+  - Small $h$: Less bias, higher variance
+--
+
+- If the true CEF is linear, we can get away with choosing a larger $h$ (since the model will be correct)
+  - If the true CEF is non-linear, then our linear approximation will only be "good" for a small window.
+  - How bad depends on the degree of non-linearity
+--
+
+- An "optimal" bandwidth minimizes the Mean Square Error $(\text{Bias}^2 + \text{Variance})$
+--
+
+- Imbens and Kalyanaraman (2012) and Calonico et. al. (2014) - derive an approximation to the MSE to find an optimal solution. 
+  - Depends on three main factors: density of observations around $c$, variance of $Y$ around $c$ and the curvature of the CEF around $c$.
+- Confidence intervals using will still under-cover (the optimal MSE estimator is biased). 
+  - Solution: Use a smaller $h$ than optimal or use a bias-correction (Cattaneo et. al., 2014)
+
+---
+
+# Discussion: Higher-order polynomials
+
+- Chen, Ebenstein and Greenstone (2013: PNAS) attempt to estimate the effect of air polution on life expectancy using data from China.
+- **Design** - Geographic RD using the Huai River - From 1950 to 1980 the Chinese government subsidized the use of coal for heating in cities North of the Huai river
+  - The authors argue that this created an exogenous shock in air polution at the boundary.
+  - Use a regression-discontinuity approach to estimate the effect of exposure to air polution on life expectancy.
+--
+
+.center[<img src="assets/pnas_distribution.jpeg" alt = "airpolution", height="300px">]
+
+---
+
+# Discussion: Higher-order polynomials
+
+- They estimate the effect using a global third-order polynomial of distance to the Huai river
+
+.center[<img src="assets/pnas_reduced_form.jpeg" alt = "mortality", height="450px">]
+
+---
+
+# Discussion: Higher-order polynomials
+
+
+.center[<img src="assets/pnas_first_stage.jpeg" alt = "mortality", height="500px">]
+
+
+---
+
+# Discussion: Higher-order polynomials
+
+```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+house %>% filter(abs(x) < 1) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) + 
+  stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x + I(x^2) + I(x^3)) +
+  geom_vline(xintercept=0, lty=2)  + theme_bw() + theme(legend.position="none") + 
+  xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
+
+```
+
+---
+
+class: title-slide
+
+# "Fuzzy" RD
+
+---
+
+# Fuzzy Regression Discontinuity
+
+- Under a "fuzzy" RD, the probability of receiving treatment is no longer a jump from 0 to 1 at the cut-point.
+- However, we will still assume that there is a jump in the probability of receiving treatment at the discontinuity
+--
+
+- **Assumption** - Discontinuity in the propensity score at $c$
+  
+$$\lim_{x \to c^{+}} Pr(D_i = 1 | X_i = x) \neq \lim_{x \to c^{-}} Pr(D_i = 1 | X_i = x)$$
+
+--
+
+- Often plausible in settings where the cutpoint acts as an *encouragement* to take treatment
+  - e.g. Only individuals w/ incomes below $c$ are eligible to apply for a program but they are not *forced* into it.
+
+---
+
+# Fuzzy Regression Discontinuity
+
+.center[<img src="assets/fuzzy_rd_pscore.png" alt = "fuzzy_rd", height="500px">]
+
+---
+
+# Fuzzy RD is IV
+
+- Being above the cut-off is an *instrument*
+  - $D_i(1)$: The treatment taken by unit $i$ when $X_i \ge c$
+  - $D_i(0)$: The treatment taken by unit $i$ when $X_i < c$
+--
+
+- Under our original continuity assumption, applying the Sharp RD estimator to a Fuzzy RD setting recovers the **intent to treat effect**
+
+$$\lim_{x \to c^{+}} E[Y_i | X_i = x] - \lim_{x \to c^{-}} E[Y_i | X_i = x]  = E[(D_i(1) - D_i(0))(Y_i(1) - Y_i(0)) | X_i = c] = \tau_{\text{ITT}}$$
+
+--
+
+- ITT is driven by two elements
+  - $Y_i(1) - Y_i(0)$: The actual treatment effect
+  - $D_i(1) - D_i(0)$ The effect of being above the discontinuity on taking treatment.
+  
+---
+
+# Fuzzy RD is IV
+
+- What do we need to recover a LATE?
+  - Continuity in $E[Y_i(1) | X_i = x]$ and $E[Y_i(0) | X_i = x]$ around $c$ are akin to exogeneity + exclusion restriction for the instrument
+  - "Local randomization" assumptions also give a similar intuition.
+--
+
+- Need one more assumption: monotonicity: $D_i(1) \ge D_i(0)$
+  - A "no-defiers" assumption at the discontinuity.
+  - No one who refuses the treatment when above the cut-off would take the treatment if they were below the cut-off. 
+  - No one who takes the treatment when below the cut-off would take it if they were above the cut-off.
+--
+
+- Under continuity and monotonicity, we get a familiar ratio estimator
+
+$$\frac{\lim_{x \to c^{+}} E[Y_i | X_i = x] - \lim_{x \to c^{-}} E[Y_i | X_i = x]}{\lim_{x \to c^{+}} E[D_i | X_i = x] - \lim_{x \to c^{-}} E[D_i | X_i = x]} = E[Y_i(1) - Y_i(0)| X_i = c, D_i(1) > D_i(0)]$$
+- The ratio of ITT and first stage RD estimates recovers the local average treatment effect at the cut-point among compliers.
+
+---
+
+# Estimation
+
+- We can just take the ratio of the two regression coefficients from the reduced form and the first stage RDs
+--
+
+- To get CIs, we can do this with a 2SLS approach - for a (local) linear model.
+- First stage
+
+$$D_i = \delta_0 + \rho \mathbb{I}(X_i \ge c) + \delta_1(X_i - c) + \delta_2(X_i - c)\mathbb{I}(X_i \ge c) $$
+
+- Second stage
+
+$$Y_i = \beta_0 + \tau D_i + \beta_1(X_i - c) + \beta_2(X_i - c)\mathbb{I}(X_i \ge c) $$
+--
+
+- All weak instrument problems still apply here! Need a strong first stage to do reliable inference.
+
+---
+
+# Example: Majoring in Economics
+
+- Bleemer and Mehta (2022, AEJ:AE) look at the effects of majoring in economics as an undergraduate on early-career wages.
+- **Design**: Fuzzy RD using a GPA cut-off
+  - UC Santa Cruz's Economics department implemented a policy that only permitted students receiving below a 2.8 GPA in Econ 1 and 2 to major "at the discretion of the department"
+
+---
+
+- Not all students below threshold did not major, not all students above the threshold majored
+
+.center[<img src="assets/bleemer_first_stage.png" alt = "ucsc_first_stage", height="500px">]
+
+---
+
+# Example: Majoring in Economics
+
+- The reduced form is a sharp RD
+
+.center[<img src="assets/bleemer_reduced_form.png" alt = "ucsc_reduced_form", height="500px">]
+
+---
+
+# Example: Majoring in Economics
+
+
+.center[<img src="assets/bleemer_industry_effects.png" alt = "ucsc_reduced_form", height="500px">]
+
+---
+
+class: title-slide
+
+# Diagnosing assumptions
+
+---
+
+# Placebo checks
+
+- One consequence of the continuity assumption in RD is that we should also expect any pre-treatment covariates to be continuous around the cut-point as well.
+- Common to conduct "placebo" RDs across the discontinuity on covariates known to be unaffected by treatment.
+  - Presence of a non-zero discontinuity would suggest "sorting" with different types of respondents more likely to be below vs. above
+- All the usual placebo test caveats apply
+
+---
+
+# Placebo checks
+
+.center[<img src="assets/bleemer_balance.png" alt = "ucsc_reduced_form", height="500px">]
+
+---
+
+# Density tests
+
+- One intuitive approach to testing for "bunching" at the cut-point is to see whether the number of observations just below vs. just above is roughly the same.
+  - Consistent with the "locally randomized experiment" interpretation of the RDD (Cattaneo, Titiunik and Vasquez-Bare, 2017).
+- Straightforward binomial hypothesis test: The number of observations above vs. below the cut-off in a certain window should be about 1/2.
+
+---
+
+# Density tests
+
+- **Example**: Consider a window of $.01$ for our close elections RD
+```{r}
+house %>% filter(abs(x) <= .01) %>% group_by(d) %>% summarize(n())
+```
+
+---
+
+# Density tests
+
+- We have 56 elections above and 50 below. What's the probability that we would see this just by chance (under independent coin flips)
+
+```{r}
+binom.test(x=56, n = 106)
+```
+
+---
+
+# Density tests
+
+- McCrary (2008) argues that if units are not able to manipulate their $X_i$, then the density of $X_i$ around the discontinuity should be continuous.
+  - The histogram shouldn't have any huge drop-off at $c$
+--
+
+- **Intuition**
+  - Construct a histogram of the running variable (with bins selected to not overlap at the discontinuity)
+  - Smooth the histogram by fitting a local linear regression of the histogram heights on the bin mid-points
+  - Test for the difference in the smoothed histogram near the discontinuity
+--
+
+- More modern approach in Cattaneo, Jansson and Ma (2020) using a local polynomial density estimator
+  - Implemented in `rddensity`
+  
+---
+
+# Density tests
+
+```{r}
+density_test  <- rddensity::rddensity(house$x, c=0, bino=F, massPoints=F)
+summary(density_test)
+```
+
+---
+
+# Density tests
+
+```{r, fig.align="center", fig.width=9, fig.height=6}
+rdplot <- rddensity::rdplotdensity(density_test, house$x)
+```
+
+---
+
+# Overview
+
+- Regression discontinuity designs leverage a known treatment assignment process based on a "score" $X_i$ and a cut-off $c$.
+  - Key assumption is *continuity* in the CEFs $E[Y_i(1) | X_i]$ and $E[Y_i(0) | X_i]$ around $c$
+--
+
+- Be wary of sorting around the discontinuity
+  - Placebo testing with pre-treatment covariates
+  - Density tests
+--
+
+- Estimation challenges are significant in RD
+  - Why? Because we're *extrapolating* to a discontinuity!
+  - Results can be very sensitive to arbitrary modeling choices
+--
+
+- Modern approaches to RD use **local** regressions (w/ some bandwidth around the cut-off) with lower-order polynomials (linear or quadratic).
+  - Beware cubic polynomials and above! Poor boundary properties.
+  - Typically assess sensitivity across lots of different bandwidth choices
+--
+
+- Always plot your RDs!
+
+---
