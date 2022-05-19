@@ -1,0 +1,227 @@
+---
+title: "PLSC 30600 - Lab 8 - Regression Discontinuity Design"
+author: ''
+date: "5/19/2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# use packages
+library(rddensity)
+library(rdrobust)
+library(lpdensity)
+library(haven)
+library(tidyverse)
+```
+
+# Meyersson (2014) - "Islamic Rule and the Empowerment of the Poor and Pious"
+
+In this lab, we will illustrate how to conduct RD analysis with the rdrobust packages. The data comes from Meyersson (2014), and can be downloaded from: https://github.com/rdpackages-replication/CIT_2019_CUP/blob/master/CIT_2019_Cambridge_polecon.dta. Note that all the the codes in this R file can be found from Cattaneo et al. (2019), which is a very nice handbook on the practical guide of running RD analysis.
+
+Meyersson (2014) studies the effect of electing Islamic part on women's education. The variables in the datasets are:
+
+- `Y` - educational attainment of women, measured as the percentage of women aged 15 to 20 in 2000 who had completed high school by 2000
+- `X` - vote margin obtained by the Islamic party in the 1994 Turkish mayoral elections, measured as the vote percentage obtained by the Islamic party minus the vote percentage obtained by its strongest secular party opponent.
+- `T` - electoral victory of the Islamic party in 1994
+
+- `lpop1994` - Log Population in 1994
+- `partycount` - Number of Parties Receiving Votes in 1994
+- `vshr_islam1994` - Islamic Vote Percentage in 1994
+- `i89` - Islamic Mayor in 1989
+- `merkezp` - Province Center Indicator
+- `merkezi` - District Center Indicator
+
+```{r}
+# load data from Meyersson (2014, ECTA)
+meyersson_2014ecta <- read_dta("meyersson_2014ecta.dta")
+
+# specify outcome, running variable, and treatment variable
+Y <- meyersson_2014ecta$Y
+X <- meyersson_2014ecta$X
+T <- meyersson_2014ecta$T
+T_X <- T*X
+```
+
+# RD validity tests
+
+The first validity test is to test whether or not the density of the running variable is continuous at the cutoff. The idea is that if people can manipulate the running variable to sort themselves to a side where they expect benefits, we would observe discontinuity of the density of the running variables at the cutoff. In Meyersson (2014), we fail to reject the null that there is a manipulation of running variable.
+```{r}
+# test H0: the density of the running variable is continuous at the cutoff
+out <- rddensity(X)
+summary(out)
+
+# plot histogram of running variable
+bw_left <- as.numeric(rddensity(X)$h[1])
+bw_right <- as.numeric(rddensity(X)$h[2])
+tempdata <- as.data.frame(X)
+colnames(tempdata) = c("v1")
+plot2 <- ggplot(data=tempdata, aes(tempdata$v1)) + 
+  theme_bw(base_size = 17) + 
+  geom_histogram(data = tempdata, 
+                 aes(x = v1, y= ..count..), 
+                 breaks = seq(-bw_left, 0, 1), 
+                 fill = "blue", 
+                 col = "black", 
+                 alpha = 1) +
+  geom_histogram(data = tempdata, 
+                 aes(x = v1, y= ..count..), 
+                 breaks = seq(0, bw_right, 1), 
+                 fill = "red", 
+                 col = "black", 
+                 alpha = 1) + 
+  labs(x = "Score", y = "Number of Observations") + 
+  geom_vline(xintercept = 0, color = "black")
+plot2
+
+# plot the density of the running variable
+est1 <- lpdensity(data = X[X < 0 & X >= -bw_left], 
+                 grid = seq(-bw_left, 0, 0.1), 
+                 bwselect = "IMSE",
+                 scale = sum(X < 0 & X >= -bw_left) / length(X))
+est2 <- lpdensity(data = X[X >= 0 & X <= bw_right], 
+                  grid = seq(0, bw_right, 0.1), 
+                  bwselect = "IMSE", 
+                  scale = sum(X >= 0 & X <= bw_right) / length(X))
+plot1 <- lpdensity.plot(est1, 
+                        est2, 
+                        CIshade = 0.2, 
+                        lcol = c(4, 2), 
+                        CIcol = c(4, 2), 
+                        legendGroups = c("Control", "Treatment")) + 
+  labs(x = "Score", y = "Density") + 
+  geom_vline(xintercept = 0, color = "black") +
+  theme_bw(base_size = 17) + 
+  theme(legend.position = c(0.8, 0.85))
+plot1
+```
+
+
+The other RD validity test is to test whether or not pre-treatment covariates vary smoothly at the threshold. The idea is that if individuals cannot perfectly manipulate the running variable near the threshold, then, there should be no systematic differences on pre-treatment covariates around the threshold.
+```{r}
+# Log Population in 1994
+out <- rdrobust(meyersson_2014ecta$lpop1994, X)
+summary(out)
+
+# Number of Parties Receiving Votes in 1994
+out <- rdrobust(meyersson_2014ecta$partycount, X)
+summary(out)
+
+# Islamic Vote Percentage in 1994
+out <- rdrobust(meyersson_2014ecta$vshr_islam1994, X)
+summary(out)
+
+# Islamic Mayor in 1989
+out <- rdrobust(meyersson_2014ecta$i89, X)
+summary(out)
+
+# Province Center Indicator
+out <- rdrobust(meyersson_2014ecta$merkezp, X)
+summary(out)
+
+# District Center Indicator
+out <- rdrobust(meyersson_2014ecta$merkezi, X)
+summary(out)
+```
+
+We can also test whether or not there are jumps on the outcome at placebo cutoffs. The idea is that if the RD design works, we will only observe a jump at the true cutoff.
+```{r}
+# placebo tests of placebo cutoffs
+out <- rdrobust(Y[X <= 0], X[X <= 0], c = -3)
+summary(out)
+
+out <- rdrobust(Y[X <= 0], X[X <= 0], c = -2)
+summary(out)
+
+out <- rdrobust(Y[X <= 0], X[X <= 0], c = -1)
+summary(out)
+
+out <- rdrobust(Y[X >= 0], X[X >= 0], c = 1)
+summary(out)
+
+out <- rdrobust(Y[X >= 0], X[X >= 0], c = 2)
+summary(out)
+
+out <- rdrobust(Y[X >= 0], X[X >= 0], c = 3)
+summary(out)
+```
+
+# Using RD Plots to Present the Resutls Visually
+
+Before using regression to present the RD results, it is often useful to to draw the plot to show the readers that there is a jump of the outcome at the cutoff. We can use the rdplot package to draw such plot. From the plot that uses Meyersson (2014) data, we can see that there is graphical evidence that electing Islamic part increases woman's education.
+```{r}
+# plot the raw data
+plot(X, 
+     Y, 
+     xlab = "Score", 
+     ylab = "Outcome", 
+     col = 1, 
+     pch = 20, 
+     cex.axis = 1.5, 
+     cex.lab = 1.5)
+abline(v=0)
+
+# use rdplot package to draw plot with evenly spaced bins
+out <- rdplot(Y, 
+              X, 
+              nbins = c(20,20), 
+              binselect = 'es', 
+              y.lim = c(0,25))
+summary(out)
+
+# use rdplot package to draw plot with quantile spaced bins
+out <- rdplot(Y, 
+              X, 
+              nbins = c(20,20), 
+              binselect = 'qs', 
+              y.lim = c(0,25))
+summary(out)
+```
+
+# Regression Presentation of the RD estimator
+
+We now proceed to use the rdrobust package to produce an estimate and the associated confidence interval of the RD estimand. The rdrobust package can use robust bias correction for constructing confidence intervals, which has smaller coverage errors than competing approaches. Overall, the results show that there is a positive effect of electing Islamic party on women's education. The results are significant at 10\% level when not conditioning on covariates, and are significant at 5\% level when conditioning on covariates.
+```{r}
+# rdrobust without covariates
+out <- rdrobust(Y, 
+                X, 
+                kernel = "triangular", 
+                p = 1, 
+                bwselect = "mserd", 
+                all = TRUE)
+summary(out)
+
+# rdrobust with covariates
+Z <- cbind(meyersson_2014ecta$vshr_islam1994, 
+           meyersson_2014ecta$partycount, 
+           meyersson_2014ecta$lpop1994, 
+           meyersson_2014ecta$merkezi, 
+           meyersson_2014ecta$merkezp, 
+           meyersson_2014ecta$subbuyuk, 
+           meyersson_2014ecta$buyuk)
+colnames(Z) <- c("vshr_islam1994", 
+                 "partycount", 
+                 "lpop1994", 
+                 "merkezi", 
+                 "merkezp", 
+                 "subbuyuk", 
+                 "buyuk")
+out <- rdrobust(Y, 
+                X, 
+                covs = Z, 
+                kernel = 'triangular', 
+                scaleregul = 1, 
+                p = 1, 
+                bwselect = 'mserd')
+summary(out)
+```
+
+# Reference
+
+Cattaneo, Matias D., Nicolás Idrobo, and Rocıo Titiunik. "A Practical Introduction to Regression Discontinuity Designs: Foundations." arXiv preprint arXiv:1911.09511 (2019).
+
+Meyersson, Erik. "Islamic Rule and the Empowerment of the Poor and Pious." Econometrica 82, no. 1 (2014): 229-269.
