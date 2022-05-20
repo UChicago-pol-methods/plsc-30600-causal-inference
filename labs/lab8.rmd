@@ -216,7 +216,8 @@ out <- rdrobust(Y,
                 kernel = 'triangular', 
                 scaleregul = 1, 
                 p = 1, 
-                bwselect = 'mserd')
+                bwselect = 'mserd', 
+                all = TRUE)
 summary(out)
 ```
 
