@@ -16,21 +16,20 @@ class: title-slide
 $$
   \require{cancel}
 $$
-
 ---
 
 # Course Overview
 
 - Instructor: .maroon[Anton Strezhnev]
-- TA: .maroon[Arthur Yu]
+- TA: .maroon[Oscar Cuadros]
 --
 
 - Logistics:
-  - Lectures M/W - 3:00pm - 4:20pm; Sections F - 9:30 - 10:20am
+  - Lectures T/Th - 11:00am - 12:20pm; Sections F - 10:30 - 11:20am
   - 3 Problem Sets (~ 2 weeks)
   - Take-home midterm and final (~ 1 week)
-  - My office hours: Tuesdays 1pm-3pm (Pick 328)
-  - Arthur's office hours: Fridays 10:30-12:30pm (Pick 312)
+  - My office hours: Tuesdays 4pm-6pm (Pick 328)
+  - Oscar's office hours: Fridays TBD
 --
 
 - What is this course about?
