@@ -55,7 +55,7 @@ $$
   - Tuesday lecture: Introduction + higher-level overview
   - Thursday lecture: More in-depth details + applications
     - You should do the readings prior to each week, but definitely be 
-    sure to do them before the Wednesday.
+    sure to do them before the Thursday.
 --
 - .maroon[Readings]
   - Mix of textbooks and papers - theory + application.
@@ -91,8 +91,7 @@ $$
 --
 - .maroon[Participation] (10% of your grade)
   - It is important that you actively engage with lecture and section -- ask and answer questions.
-  - Do the reading! Wednesdays will open with an informal quiz/discussion on topics from the assigned chapters/papers
-  for that week.
+  - Do the reading! 
   - Participating on Stack Overflow counts towards this as well.
 
 
