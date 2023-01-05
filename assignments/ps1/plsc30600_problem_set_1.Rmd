@@ -3,6 +3,7 @@ title: 'PLSC 30600: Problem Set 1'
 author: "YOUR NAME"
 date: "January 5, 2022"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -10,6 +11,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # Useful packages
+library(estimatr)
 library(tidyverse)
 library(haven)
 ```
@@ -51,10 +53,6 @@ Despite its significant importance to many political debates, there are few caus
 For this problem, you will need the `OHIE.dta` file. The variables you will need are:
   
 ```{r}
-library(estimatr)
-library(tidyverse)
-library(haven)
-
 ohie <- haven::read_dta("OHIE.dta")
 ```
   
