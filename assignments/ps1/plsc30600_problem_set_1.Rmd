@@ -60,6 +60,7 @@ The variables you will need are:
 
 - `treatment` - Selected in the lottery 
 - `ohp_all_ever_admin` -  Ever enrolled in Medicaid from matched notification date to September 30, 2009 (actually had Medicaid insurance)
+- `weight_total_inp` - Survey weight
 
 - `tab2bp_hyper` - Outcome: Binary indicator for elevated blood pressure (defined a systolic pressure of 140mm Hg or more and a diastolic pressure of 90mm Hg or more)
 - `tab2phqtot_high` - Outcome: Binary indicator for a positive screening result for depression (defined as a score of 10 or higher\ on the Patient Health Questionaire - 8)
@@ -86,6 +87,8 @@ ohie$nonmissing <- complete.cases(ohie %>% dplyr::select(tab2bp_hyper, tab2phqto
 ohie_complete <- ohie %>% filter(nonmissing == 1)
 ```
 
+Note that because of the methods used to recruit treated and control individuals for observation, all analyses are weighted using the known sample selection weight `weight_total_inp` (see the paper for more details on how this was constructed). Your analyses below should incorporate these weights.
+
 ## Part A
 
 Using the complete case data and the pre-treatment covariates, assess whether you think randomization of the selection lottery was successfully carried out. Explain why or why not.
@@ -104,9 +107,6 @@ Suppose that a researcher instead chose to estimate the effect of Medicaid enrol
 
 Does the "per-protocol" analysis provide an unbiased estimator of the average treatment effect of Medicaid? Explain why or why not.
 
-## Part E
-
-In the analyses above, you examined only those observations where respondents could be reached and where follow-up data was available. Does being selected in the lottery affect whether data is missing for a respondent? What assumption(s) do we need to make so that only analyzing the non-missing respondents will not induce bias in the intent-to-treat effect estimator.
 
 # Problem 3
 

@@ -1728,6 +1728,7 @@ variables you will need are:</p>
 <li><p><code>ohp_all_ever_admin</code> - Ever enrolled in Medicaid from
 matched notification date to September 30, 2009 (actually had Medicaid
 insurance)</p></li>
+<li><p><code>weight_total_inp</code> - Survey weight</p></li>
 <li><p><code>tab2bp_hyper</code> - Outcome: Binary indicator for
 elevated blood pressure (defined a systolic pressure of 140mm Hg or more
 and a diastolic pressure of 90mm Hg or more)</p></li>
@@ -1761,6 +1762,11 @@ ohie$nonmissing &lt;- complete.cases(ohie %&gt;% dplyr::select(tab2bp_hyper, tab
 
 # Subset down to complete cases
 ohie_complete &lt;- ohie %&gt;% filter(nonmissing == 1)</code></pre>
+<p>Note that because of the methods used to recruit treated and control
+individuals for observation, all analyses are weighted using the known
+sample selection weight <code>weight_total_inp</code> (see the paper for
+more details on how this was constructed). Your analyses below should
+incorporate these weights.</p>
 <div id="part-a-1" class="section level2">
 <h2>Part A</h2>
 <p>Using the complete case data and the pre-treatment covariates, assess
@@ -1798,15 +1804,6 @@ asymptotic confidence interval and compare your results to the ITT
 estimate from Part B.</p>
 <p>Does the “per-protocol” analysis provide an unbiased estimator of the
 average treatment effect of Medicaid? Explain why or why not.</p>
-</div>
-<div id="part-e" class="section level2">
-<h2>Part E</h2>
-<p>In the analyses above, you examined only those observations where
-respondents could be reached and where follow-up data was available.
-Does being selected in the lottery affect whether data is missing for a
-respondent? What assumption(s) do we need to make so that only analyzing
-the non-missing respondents will not induce bias in the intent-to-treat
-effect estimator.</p>
 </div>
 </div>
 <div id="problem-3" class="section level1">
@@ -1897,7 +1894,7 @@ result in Part B. Discuss any differences you observe.</p>
 estimator using this assignment scheme unbiased for the average
 treatment effect <span class="math inline">\(\tau = 2\)</span>?</p>
 </div>
-<div id="part-e-1" class="section level2">
+<div id="part-e" class="section level2">
 <h2>Part E</h2>
 <p>Intuitively, what will happen to the sampling variance if <span class="math inline">\(\pi\)</span> is set to be less than <span class="math inline">\(.5\)</span>? (You don’t need to use a simulation
 to answer this, but you are welcome to use one if it would help).</p>
