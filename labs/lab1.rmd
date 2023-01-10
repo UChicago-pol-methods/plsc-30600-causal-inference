@@ -3,6 +3,7 @@ title: "PLSC 30600 - Lab 1 - Monte Carlo Simulation"
 author: ''
 date: "4/01/2022"
 output:
+  pdf_document: default
   word_document: default
   html_document: default
 ---
@@ -83,7 +84,7 @@ tibble(xbar = sample_means) %>% ggplot(aes(x=xbar)) +
 
 ```
 
-Recall the statement of the CLT: $X_{1}, X_{2}, ..., X_{n}$ is a sequence of independent and identically distributed (i.i.d.) random variables with $V(X_{i}) = \sigma^2 < + \infty$, $\sqrt{n} (\frac{1}{n} \sum_{i = 1}^{n} - \mathbb{E}[X_{i}]) \xrightarrow[]{D} N(0, \sigma^2)$. In the simulation below, we illustrate the convergence of the CDF. Again, we use i.i.d. Bernoulli random variable with $\mathbb{P}[X_{i} = 1] = 0.5$. Thus, $\mathbb{E}[X_{i}] = 0.5$ and $\sigma^2 = 0.25$.
+Recall the statement of the CLT: $X_{1}, X_{2}, ..., X_{n}$ are independent and identically distributed (i.i.d.) random variables with $V(X_{i}) = \sigma^2 < + \infty$, $\sqrt{n} (\frac{1}{n} \sum_{i = 1}^{n} X_i - \mathbb{E}[X_{i}]) \xrightarrow[]{D} N(0, \sigma^2)$. In the simulation below, we illustrate the convergence of the CDF. Again, we use i.i.d. Bernoulli random variable with $\mathbb{P}[X_{i} = 1] = 0.5$. Thus, $\mathbb{E}[X_{i}] = 0.5$ and $\sigma^2 = 0.25$.
 
 ```{r}
 # set seed to make results replicable
