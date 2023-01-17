@@ -306,14 +306,14 @@ $$\widehat{Var_{\text{strat}}(\hat{\tau})} = \sum_{g = 1}^G \widehat{Var(\hat{\t
 
 # Can blocking hurt?
 
-- Long debate over where it's possible to go wrong blocking. Athey and Imbens (2017) argue no downside to blocking.
+- Long debate over where it's possible to go wrong blocking. **Athey and Imbens (2017)** argue no downside to blocking.
 --
 
 - This answer depends on the framework for inference.
-  - Pashley and Miratrix (2021) give an extensive review under alternative sampling/inference schemes.
+  - **Pashley and Miratrix (2021)** give an extensive review under alternative sampling/inference schemes.
 --
 
-- Athey and Imbens result holds under stratified random sampling from the population and equal treatment probability w/in strata.
+- **Athey and Imbens** result holds under stratified random sampling from the population and equal treatment probability w/in strata.
   - Intuition: In the worst case scenario, stratification is just a two-stage randomization process equivalent to complete randomization. 
 --
 
@@ -339,7 +339,7 @@ are constant across strata
 - Key difference from stratification: Number of treated/control w/in stratum is random and not fixed. Stratum sizes also not fixed.
 --
 
-- Miratrix, Sekhon and Yu (2013) 
+- **Miratrix, Sekhon and Yu (2013)**
   - Usually not a problem -- relative to blocking ex-ante, the differences in variances are small.
   - Problems with many strata + poorly predictive strata. 
   - Unlike the Athey and Imbens setting, benefits not guaranteed, but often doesn't hurt with good covariate choice.
@@ -434,7 +434,7 @@ $$E[Y_i | D_i, X_i] = \alpha + \tau D_i + \beta X_i$$
 - Is this fine even if we don't believe the linearity assumptions? 
 --
 
-- Lin (2013): With a slight twist on the model, yes!
+- **Lin (2013)**: With a slight twist on the model, yes!
 - Define $\tilde{X_i}$ as the de-meaned $X_i$: $\tilde{X_i} = X_i - \bar{X_i}$
 
 $$E[Y_i | D_i, \tilde{X}_i] = \alpha + \tau D_i + \beta \tilde{X}_i + \gamma \tilde{X}_i D_i$$
@@ -451,7 +451,6 @@ $$E[Y_i | D_i, \tilde{X}_i] = \alpha + \tau D_i + \beta \tilde{X}_i + \gamma \ti
 ```{r}
 # Lin(2013) with continuous pre-treatment Before
 lm_lin(After ~ I(treatment == "High"), covariates = ~ Before, data=exercise2)
-
 ```
 
 
