@@ -448,9 +448,35 @@ $$E[Y_i | D_i, \tilde{X}_i] = \alpha + \tau D_i + \beta \tilde{X}_i + \gamma \ti
 
 # Lin (2013) estimator
 
+- What's **not** optimal:
+
+$$E[Y_i | D_i, X_i] = \alpha + \tau D_i + \beta X_i$$
+ 
+--
+
+- The **better** approach:
+
+$$E[Y_i | D_i, X_i] = \alpha + \tau D_i + \beta(X_i - \bar{X}) + \gamma D_i (X_i - \bar{X})$$
+
+---
+
+# Lin (2013) estimator
+
 ```{r}
 # Lin(2013) with continuous pre-treatment Before
 lm_lin(After ~ I(treatment == "High"), covariates = ~ Before, data=exercise2)
+```
+
+---
+
+
+# Lin (2013) estimator
+
+- Do it by hand!
+
+```{r}
+# Lin(2013) with continuous pre-treatment Before
+lm_robust(After ~ I(treatment == "High") + I(Before - mean(Before)) + I(treatment == "High")*I(Before - mean(Before)), data=exercise2)
 ```
 
 
