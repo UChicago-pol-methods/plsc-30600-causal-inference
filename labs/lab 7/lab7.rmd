@@ -1,0 +1,323 @@
+---
+title: "PLSC 30600 - Lab 7 - Differences-in-differences"
+author: ''
+date: "5/13/2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# use packages
+library(tidyverse)
+library(estimatr)
+library(haven)
+options(digits=3)
+
+```
+
+# Paglayan (2019) - "Public-Sector Unions and the Size of Government"
+
+This lab will have you work through implementing and analyzing a differences-in-differences design with staggered adoption. We'll start with the common two-way fixed effects specification, highlight some of its problems, and illustrate some newer methods that have been developed to address them.
+
+The dataset for this analysis comes from 
+
+> Paglayan, Agustina S. "Public‐Sector Unions and the Size of Government." American Journal of Political Science 63.1 (2019): 21-36.
+
+The paper looks at the effect of the rollout of mandatory teacher collective bargaining laws among U.S. states on education policy. It focuses on the impact of these laws on four outcomes related to investment in education and education quality: student teacher ratio, teacher salary and per-pupil expenditures. It uses a difference-in-differences design to estimate these treatment effects. However, because mandatory collective bargaining laws were not all implemented at the same time, the study is a staggered-rollout DiD design.
+
+The relevant variables we'll need from the data are:
+
+- `year` - School year
+- `State` - State
+
+- `CBrequired_SY` - Is collective bargaining required in this school year ($D_{it}$)
+- `YearCBrequired` - In what year is collective bargaining required?
+
+- `studteachratio` - Student teacher ratio
+- `lnavgteachsal` - Annual teacher salary (log, 2010 dollars)
+- `lnppexpend` - Per-pupil current expenditures (log 2010 dollars)
+- `lnnonwageppexpend` - Per-pupil non-wage current expenditures (log, 2010 dollars)
+
+Let's start by loading in the complete dataset
+
+```{r, message=F, echo=T}
+union <- read_dta("Paglayan Dataset.dta")
+```
+
+The analysis primarily focuses on the period from 1959 to 1997, so let's subset down to those times
+
+```{r, message = F, echo = T}
+union <- union %>% filter(year >= 1959 & year <= 1997)
+```
+
+
+# Visualizing treatment patterns
+
+It's important to understand the timing of treatment patterns whenever looking at a staggered roll-out design: how many units ever initiate treatment, how many units are "never-treated", how staggered is the treatment (are there a lot that take treatment at the same time or are there many different timing-groups)? 
+
+One very convenient package for doing this visualization is the `panelView` package which contains the `panelview` function. The documentation is quite extensive and supports plots of the outcome among different treatment timings as well as plots of the treatment - definitely check it out for yourself. Here we'll illustrate how to make a simple treatment timing plot
+
+```{r, message=F, fig.width=8, fig.height=6}
+library(panelView)
+
+# Our treatment at time t variable (D_{it}) is "CBrequired_SY"
+# The syntax for the index argument is to pass the name of the "unit" variable and the name of the "time" variable
+# by.timing sorts the units by treatment initiation
+# axis.adjust makes it so we can read the years (tilts them 45 degrees)
+panelview(data = union, D = "CBrequired_SY", index = c("State", "year"), axis.adjust=T, by.timing=T)
+
+```
+
+Note that Wisconsin has only one pre-treatment period and ends up being removed from the analysis (since we can't use it for the pre-treatment placebos). DC is also dropped because it's not a state.
+
+```{r} 
+# Drop WI and DC
+union <- union %>% filter(State != "WI"&State!="DC")
+```
+
+# Two-way fixed effects
+
+The paper looks at four main outcomes: 
+
+- `studteachratio` - Student teacher ratio
+- `lnavgteachsal` - Annual teacher salary (log, 2010 dollars)
+- `lnppexpend` - Per-pupil current expenditures (log 2010 dollars)
+- `lnnonwageppexpend` - Per-pupil non-wage current expenditures (log, 2010 dollars)
+
+Let's start by just running two-way fixed effects (with all of its attendant issues and seeing what the estimates are)
+
+```{r}
+# Student-teacher ratio
+lm_robust(studteachratio ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+
+# Annual teacher salary (log, 2010 dollars)
+lm_robust(lnavgteachsal ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnnonwageppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+```
+
+Interesting results - especially with the estimated *increase* in student-teacher ratio among states with collective bargaining (you can see this somewhat in Figure 2 in the original paper). However, these are not quite the point estimates reported in Table 2 in the original paper - what's different? Well, the paper makes a very surprising decision to remove the "never-treated" groups from the analysis. In other words, the analyses in the paper focus only on those states that *ever* implement a collective bargaining law and leverage the variation in treatment timing for identification. While this decision may be motivated by the belief that parallel trends does not hold with respect to but *does* hold with respect to the "not-yet-treated" - a plausible argument given that the sorts of states that are *never* able to implement a mandatory collective bargaining law  - it does create some substantial issues in estimation and inference.
+
+Let's start by visualizing the treatment histories among these never-treated units.
+
+```{r}
+# Drop the never-treateds
+union_treated <- union %>% filter(!is.na(YearCBrequired))
+
+# Visualize the rollout
+panelview(data = union_treated, D = "CBrequired_SY", index = c("State", "year"), axis.adjust=T, by.timing=T)
+```
+
+First, note what quantities we can no longer estimate - we can't estimate any effects beyond 1987 since there are no untreated units in that period. Essentially, all of the treated units after 1987 are *only* being used to "de-bias" the cross-sectional differences from the past, but of course these are only valid if we assume constant treatment effects and no persistent effects over time.
+
+Consider, for example, one of the possible 2x2 comparisons between Ohio (OH) and Nebraska (NE). Ohio implements its CB law in 1984, leaving NE the only other state among the "sometime-treated" that has not implemented a CB law (which it does in 1987). A valid difference-in-differences comparison for estimating the effect of starting treatment in 1984 on the outcome in 1984 would be to compare Ohio to Nebraska in 1984 and subtract the difference between Ohio and Nebraska in any time between 1959 and 1983 (assuming parallel trends holds). However, the two-way fixed effects estimator will *also* consider the difference in the difference between Ohio and Nebraska in 1984 and the difference between Ohio and Nebraska in 1997 (when both have been treated) as a valid comparison. But if effects are cumulative, Ohio will have been under treatment for three more years than Nebraska in that period - the observed difference might not be purely due to selection bias!
+
+Let's replicate the paper's 2-way FE estimates and see how they differ from when we include the never-treated groups.
+
+```{r}
+# Student-teacher ratio
+lm_robust(studteachratio ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated, cluster=State)
+
+# Annual teacher salary (log, 2010 dollars)
+lm_robust(lnavgteachsal ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated, cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated, cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnnonwageppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated, cluster=State)
+```
+
+First, the standard errors go up *significantly*, but we also observe some notable changes in the point estimates - our effect on student-teacher ratios gets cut by about a third. We now see a slightly more negative effect on teacher salaries that crosses over to $p < .05$.
+
+Recall that the two-way fixed effects estimator is an average of 2x2 difference-in-differences, but some of these comparisons are "forbidden" in that they compare treated and control in time period $t$ to those same units when they *both* are under treatment at some time greater than $t+1$. If treatment effects persist over time, these are invalid "second" differences since they include both the unobserved selection bias and a "treatment effect" (the difference between the group-time effects at time $t+1$ between group $g$ and group $g+1$). Unless effects are constant over time (the group-time effect is constant for all $t$ - in other words, the effect only depends on whether you're under treatment and not *how long* you have been under treatment), this will induce bias.
+
+Of course, this is still a problem in the original 2-way FE specifications, but the share of "forbidden" to valid 2x2 diff-in-diffs is much smaller when include "never-treated" units (because they are always under control and therefore don't have ).
+
+Note that the problem of "forbidden" diff-in-diffs in two-way fixed effects appears *only* in the staggered setting when we compare two units that start treatment at different times.
+
+Let's see what happens if we drop all time periods after 1986 (which are *only* ever used for the bad differences)!
+
+```{r}
+# Student-teacher ratio
+lm_robust(studteachratio ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated %>% filter(year <= 1986), cluster=State)
+
+# Annual teacher salary (log, 2010 dollars)
+lm_robust(lnavgteachsal ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated %>% filter(year <= 1986), cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated %>% filter(year <= 1986), cluster=State)
+
+# Log per-pupil expenditures
+lm_robust(lnnonwageppexpend ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union_treated %>% filter(year <= 1986), cluster=State)
+```
+Not too much change (as expected) since in both cases the treatment effects are only identified on units up to 1986, but our expenditure and salary estimates get closer to 0.
+
+How should we choose between these estimates? Ultimately neither is "incorrect" depending on our identification assumptions - do we believe that parallel trends holds in general (with respect to all treatment groups/cohorts) or only with respect to the groups that *at some point* get treated? Do we believe effects are constant and not cumulative over time?
+
+One simple fix that we might want to make is to use an estimator that does not use future periods to de-bias our estimates of each group-time treatment effect. Essentially, we'd like to estimate the effect for each treatment initiation group for every possible time period and aggregate those estimates up to some form of "average". The Callaway and Sant'anna (2021) estimator does just this and is implemented in the `did` package in R.
+
+Let's start with the full dataset, including the never-treated units - we'll focus on the "student-teacher ratio" outcome since that's the one where we get the biggest discrepancy in results
+
+```{r}
+library(did)
+
+# We pass in the first period when a unit takes treatment, coded as 0 for the never-treateds
+union$YearTreated <- union$YearCBrequired
+union$YearTreated[is.na(union$YearTreated)] <- 0
+
+# First estimate each group-time att_gt
+# Note: for some reason they want a numeric idname
+full_attgt <- att_gt(yname = "studteachratio", tname = "year", idname = "Stateid", gname = "YearTreated", data= union, control_group = "notyettreated")
+# Definitely read these warnings - it's hard to do inference with small groups!
+# There are a lot of groups and a lot of group-time effects - it's kind of pointless to try to do inference on each one, so let's aggregate.
+# we can also define the control group as the never treated observations, i.e., control_group = "nevertreated"
+
+# Callaway and Sant'anna give a few different ways - "group" will estimate an average for each group and then average those groups
+# other aggregation options
+full_att <- aggte(full_attgt, type = "group")
+full_att
+```
+
+Maybe there's something to some of the early vs. late groups, but overall the estimated effect on student-teacher ratios is slightly positive but statistically insignificant. Though take note the difference with the original two-way FE result that was "significant"
+
+What happens if we just use the "at-some-point treated" units and drop the never-treateds like in the original paper?
+
+```{r}
+union_treated <-  union %>% filter(!is.na(YearCBrequired))
+# First estimate each group-time att_gt
+# Note: for some reason they want a numeric idname
+treated_attgt <- att_gt(yname = "studteachratio", tname = "year", idname = "Stateid", gname = "YearTreated", data= union_treated, control_group = "notyettreated")
+# Note that we *cannot* fit this with control_group = "nevertreated" because there aren't any never-treateds
+
+# Aggregate to get a single "ATT"
+treated_att <- aggte(treated_attgt, type = "group")
+treated_att
+```
+Again, somewhat similar result to the original paper - I think possibly driven by the change in the set of time periods for which we can estimate the treatment effects (we aren't estimate effects from the 1990s because there are no more "not-yet-treated" groups).
+
+Overall though, be aware that Callaway and Sant'anna (2021) is a bit of a high-variance estimator because of how it selects the differencing groups. Try playing around with some of the new imputation estimators (e.g. Borusyak, Jaravel and Spiess (2021)) and see what you get!
+
+# "Event study" plots
+
+Suppose we don't want to estimate the effect overall, but rather the effect for each time period after treatment . Suppose we also want to do some "placebo" tests (compare pre-treatment periods relative to a baseline "never-treated" group)
+
+A very common approach to estimating per-period effects via difference-in-differences is a "dynamic" two-way fixed effects regression specification. We create a set of dummy variables for each unit based on the number of time periods between the year in the row and the year the unit takes treatment. These dummy variables will always be 0 for the never-treateds. We also need to leave one period out as our baseline comparison period
+
+```{r}
+# Make a variable for how many years away a unit is from its treatment time (0 is the time of treatment initiation, -1 is the time *just* before treatment)
+union <- union %>% mutate(yearFromCB = year - YearCBrequired)
+# How many possible levels (among units that at some point take treatment)
+table(union$yearFromCB)
+
+# Make the never-treateds "infinity" (ensure that their dummy will be dropped as well)
+union$yearFromCB[is.na(union$yearFromCB)] <- Inf
+
+# Make the dummy variables using the factor syntax - make -1 the reference period
+union$yearFromCBFactor <- relevel(as.factor(union$yearFromCB), ref="-1")
+
+# Fit a regression to get the per-period tests 
+dyn_reg <- lm_robust(studteachratio ~ yearFromCBFactor, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+dyn_reg
+
+```
+
+What gets dropped here? First, by default the -1 period isn't included (since R drops the baseline factors). R also is dropping the "Infinity" dummy for our never-treateds (as it should) - this is something of a coding trick. If you were to code up these dummies manually as is commonly done, you would just make a dummy indicator for each of the periods minus your left-out period - you never would make a dummy for your never-treateds to begin with. But we want to make sure R doesn't *drop* the never-treateds entirely as it would if the factor variable were `NA` for them.
+
+Now, let's put this into a plot
+
+```{r}
+dyn_plot <- tidy(dyn_reg) %>% filter(!is.na(estimate)) %>% mutate(period = as.numeric(str_remove(term, fixed("yearFromCBFactor")))) %>% 
+  select(period, estimate, conf.low, conf.high) %>% bind_rows(data.frame(period = -1, estimate = 0, conf.low=0, conf.high=0))
+
+dyn_plot %>% ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + geom_point() + geom_pointrange() +
+  xlab("Time since treatment start") + ylab("Estimated effect on student-teacher ratio") + geom_vline(xintercept = 0.5, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  theme_bw()
+
+```
+
+If we don't have staggered timing, this plot is equivalent to just doing a 2x2 DiD for each period relative to the left-out period (you can verify this!). For visualization purposes, we might just focus on a few periods before and after treatment initiation.
+
+```{r}
+dyn_plot %>% filter(period >= -6&period<=10) %>% ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + geom_point() + geom_pointrange() +
+  xlab("Time since treatment start") + ylab("Estimated effect on student-teacher ratio") + geom_vline(xintercept = -0.5, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  theme_bw()
+```
+
+
+The question in these sorts of plots is always which dummy indicators are "left out" - we need to make sure to leave out at *least* one in order to identify the parameters. Typically this is the first period before treatment initiation (here $-1$, in lecture $0$). But including *every* single dummy is going to lead to some high-variance estimates so its common for researchers to omit other dummy conditions. The original paper omits dummies before 6 but after 10 (though interestingly *includes* the first period before treatment initiation)
+
+An issue arises though from which periods get omitted since they form the baseline comparison group against which our placebos are computed - if we leave out "post-treatment" periods (leads), then our placebo estimates are going to be invalid (since they're not valid placebo periods). See Abraham and Sun (2021) for the full technical breakdown. I'd also recommend
+
+> Baker, Andrew C., David F. Larcker, and Charles CY Wang. "How much should we trust staggered difference-in-differences estimates?." Journal of Financial Economics 144.2 (2022): 370-395.
+
+for a clearer breakdown of the issues along with some simulations that show when things really break down.
+
+Let's actually see how the plots before would differ from the plots if we did them the way the original paper did them:
+
+```{r}
+# Make the dummy variables manually!
+union$`treat-6` <- as.numeric(union$yearFromCBFactor == -6)
+union$`treat-5` <- as.numeric(union$yearFromCBFactor == -5)
+union$`treat-4` <- as.numeric(union$yearFromCBFactor == -4)
+union$`treat-3` <- as.numeric(union$yearFromCBFactor == -3)
+union$`treat-2` <- as.numeric(union$yearFromCBFactor == -2)
+union$`treat-1` <- as.numeric(union$yearFromCBFactor == -1)
+union$`treat0` <- as.numeric(union$yearFromCBFactor == 0)
+union$`treat1` <- as.numeric(union$yearFromCBFactor == 1)
+union$`treat2` <- as.numeric(union$yearFromCBFactor == 2)
+union$`treat3` <- as.numeric(union$yearFromCBFactor == 3)
+union$`treat4` <- as.numeric(union$yearFromCBFactor == 4)
+union$`treat5` <- as.numeric(union$yearFromCBFactor == 5)
+union$`treat6` <- as.numeric(union$yearFromCBFactor == 6)
+union$`treat7` <- as.numeric(union$yearFromCBFactor == 7)
+union$`treat8` <- as.numeric(union$yearFromCBFactor == 8)
+union$`treat9` <- as.numeric(union$yearFromCBFactor == 9)
+union$`treat10` <- as.numeric(union$yearFromCBFactor == 10)
+
+# Fit a regression to get the per-period tests 
+dyn_reg_2 <- lm_robust(studteachratio ~ `treat-6` + `treat-5` + `treat-4` + `treat-3` + 
+                            `treat-2` + `treat-1` + `treat0` + `treat1` + `treat2` + `treat3` + `treat4` +
+                            `treat5` + `treat6` + `treat7` + `treat8` + `treat9` + `treat10`, fixed_effects = ~ as.factor(year) + as.factor(State),  data=union, cluster=State)
+dyn_reg_2
+
+# Messy data cleaning to make this into a coefficient plot
+dyn_plot_2 <- tidy(dyn_reg_2) %>% filter(!is.na(estimate)) %>% mutate(term = str_remove_all(term, "`")) %>% mutate(period = as.numeric(str_remove(term, fixed("treat")))) %>% 
+  select(period, estimate, conf.low, conf.high)
+
+dyn_plot_2 %>% ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + geom_point() + geom_pointrange() +
+  xlab("Time since treatment start") + ylab("Estimated effect on student-teacher ratio") + geom_vline(xintercept = -0.5, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  theme_bw()
+
+
+```
+
+This version of the plot probably understates the extent to which the parallel trends are violated relative to the plot above since it incorporates "invalid" placebo-comparison periods. 
+
+In general would recommend that if you are going to not include dummies for periods that are very far from treatment initiation, you should also just *drop* them from the estimation so that they don't contaminate your placebo tests (or include them in the full regression but just omit them from the plot).
+
+Note that even this plot differs slightly from what is presented in the original paper - again, this is because the original paper drops the never-treated units. Having no "never-treated" units causes particularly troublesome issues with the "dynamic" regression - in order to identify the parameters, researchers need to drop not only the baseline period (typically period just before treatment) but another period to allow for identification of the parameters (see Borusyak, Jaravel and Spiess (2021) for more). In general, such plots get very strange.
+
+Lastly, you can make these plots with the att_gt estimates from `did` 
+
+```{r, fig.width=15, fig.height=5}
+
+# Re-estimate the ATT_GTs but use a universal placebo period - by default it uses a moving period so you can do placebo tests for all pre-treatment periods - either is fine but the former is closest to standard practice with event-time plots
+full_attgt_uni <- att_gt(yname = "studteachratio", tname = "year", idname = "Stateid", gname = "YearTreated", data= union, control_group = "notyettreated", base_period = "universal")
+
+# Get the effects for each level of exposure (time since treatment) from our original att_gt estimates
+full_dynamic <- aggte(full_attgt_uni, type = "dynamic")
+ggdid(full_dynamic) + geom_vline(xintercept = 0, lty=2)
+
+```
+
+Ultimately, we think there might be evidence that parallel trends are violated to begin with if we include the never-treated units. This could suggest that the original paper is correct that we don't want to use the never-treated units since we don't believe that parallel trends would hold between them and the units that receive treatment at some point. However, this does *substantially* reduce our power - we're stuck with about 32 states!
+
