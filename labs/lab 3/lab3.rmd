@@ -1,0 +1,334 @@
+---
+title: "PLSC 30600 - Lab 3 - Analyzing Experiments"
+author: ''
+date: "01/20/2023"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(estimatr)
+library(ggeffects)
+library(effects)
+```
+
+
+# Analyzing an experiment: Madsen et. al. (2021)
+
+**Facts**
+
++ This lab will have you analyze and present results from an experiment conducted by [Madsen, Mayoral, Strezhnev and Voeten (2021)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3681988) examining attitudes towards international courts among voters in European countries. 
+
++ The experiment presented respondents with a vignette about a hypothetical court case in a European country that was then heard by a European court (the vignette was ambiguous, but one could imagine either the European Court of Justice or the European Court of Human Rights). 
+
++ The study manipulated two treatments: the outcome of the case and whether or not the European court overruled the domestic court. 
+
++ Three outcomes were observed: whether respondents agreed with the decision, whether they thought the decision should be implemented, and whether they supported the continued authority of European courts over domestic courts.  
+
++ The goal was to evaluate two competing hypotheses of what drives populist opposition to international courts: do they oppose courts because of a concern over national sovereignty (and so would support a domestic court making the same decision) or because of the content of the decisions (e.g. right-wing populists opposing pro-immigration policies). 
+
++ In other words, do controversial judgments get more support if the decision comes from a domestic court rather than from a European one. The experiment allowed the researchers to vary these attributes independently of one another in a hypothetical scenario.
+
+
+**More details and example**
+
++ The paper fielded multiple vignettes but here we'll focus on the immigration vignette that was fielded in all five countries in the experiment: Denmark, UK, France, Spain and Poland. 
+
++ In the vignette, respondents were asked to consider a case where the government of their home country was considering deporting a foreigner who was convicted of a crime. 
+
++ The foreigner challenged the deportation in a UK court on the grounds that deportation violated his human rights. 
+
++ Two factors were randomly varied: whether the domestic court ruled in favor of the foreigner or in favor of the government and then whether the European court overruled or agreed with the domestic court. 
+
++ This was therefore a 2x2 "factorial" design with four unique treatment combinations. The UK vignette, for example, stated:
+
+> Suppose that United Kingdom (UK) authorities decided to deport a foreigner who has been convicted of a crime. The foreigner appealed at a UK court that the decision to deport him violated his human rights. The UK court found that the authorities [CAN/CANNOT] deport the foreigner. The question was then brought before a European court, which [AGREED WITH/DISAGREED WITH] the UK court. The final decision is that the foreigner should [REMAIN IN THE UK/BE DEPORTED]. 
+
++ We'll estimate the effects of whether the foreigner was deported vs. not deported ("outcome treatment") and the effect of whether the European court deferred to or overruled the domestic court ("deferrence treatment").
+
++ Respondents were then asked 3 questions:
+
+1. Do you agree or disagree with the final decision?
+2. Do you agree or disagree that the final decision should be implemented?
+3. Do you agree or disagree that the country should continue to accept the authority of European courts?
+
++ All responses were on a 6-level scale (strongly disagree to strongly agree). 
+
++ In the pre-registration the analysis was to be conducted on the dichotomized "agree"/"disagree" outcome, so we'll focus on estimating effects on that indicator, though we'll also look at how to visualize treatment effects with multi-level or continuous outcomes. 
+
++ In practice, pre-registered "scales" combining multiple outcomes are increasingly common in recent experiments as they can be much less noisy than individual questions. 
+
++ Pre-registration avoids the risk of p-hacking and multiple testing in choosing how to create that scale.
+
+Below is the code to read in the data
+
+```{r read data, message=F, warning=F}
+### Read in dataset
+data <- read_csv("final_data_clean.csv")
+View(data)
+```
+
+
++ The analysis pre-registered four covariates that would be used to create strata for covariate adjustment: Age, Gender, Education and Country. 
+
++ For some experiments (the smaller ones run in only two countries), strata omitting age were required because they were otherwise too small and did not contain enough treated or control units.
+
++ We also wrote a function for the stratified estimator -- literally just taking the difference in means in each sub-group and averaging up to get the point and variance estimates for the ATE. Don't necessarily need to use this function, but can be useful to see the process broken down into parts in the code.
+
+```{r stratification estimator, message=FALSE, warning=FALSE}
+
+# Stratified regression estimator
+strat_reg <- function(formula, data, stratum){
+
+  # Raw counts (use this do diagnostics if things go wrong)
+  counts <- data %>% group_by(stratum) %>% summarize(N=n())
+  
+  # within each level of the data, fit the model in "formula", lm_robust is linear regression with robust standard error
+  stratum_regs <- data %>% group_by(stratum) %>% group_map(~lm_robust(formula=formula, data=.))
+  
+  # get sizes of each stratum
+  sample_sizes <- unlist(lapply(stratum_regs, function(x) x$nobs)) #nobs for most recent version of estimatr - if you're having issues, replace nobs with N (this changed at some point in that package's development)
+  
+  sample_shares <- sample_sizes/sum(sample_sizes)
+
+  # get point estimates
+  point_est <- sapply(stratum_regs, function(x) x$coefficients)
+  
+  if (!is.matrix(point_est)&is.vector(point_est)){
+    point_est <- t(as.matrix(point_est))
+  }
+  # check for NAs
+  if(sum(apply(point_est, 1, function(x) sum(is.na(x)))) > 0){
+    print(counts[apply(point_est, 2, function(x) sum(is.na(x))) != 0,])
+    stop("Error: NAs in stratified point estimates, coarsen strata to obtain enough units in each treatment condition per stratum")
+  }
+
+  var_est <- sapply(stratum_regs, function(x) abs(diag(vcov(x)))) # diagonals must be positive, some numerical issues w/ Variances of 0 (Pr(Y) = 1 or 0)
+
+  if (!is.matrix(var_est)&is.vector(var_est)){
+    var_est <- t(as.matrix(var_est))
+  }
+    # check for NAs
+  if(sum(apply(var_est, 1, function(x) sum(is.na(x)))) > 0){
+    print(counts[apply(var_est, 2, function(x) sum(is.na(x))) != 0,])
+    stop("Error: NAs in stratified variance estimates, coarsen strata to obtain enough units in each treatment condition per stratum")
+  }
+
+
+  point_combined <- apply(point_est, 1, function(x) sum(x*sample_shares))
+  se_combined <- apply(var_est, 1, function(x) sqrt(sum(x*sample_shares^2)))
+
+  # Fix names for 1-length vectors
+  if(length(point_combined) < 2){
+    char_names <- c("(Mean)")
+  }else{
+    char_names <- names(point_combined)
+  }
+  
+  # Save the results
+  out_results <- data.frame(term = as.character(char_names), estimate=point_combined, std.error = se_combined)
+  out_results$statistic <- out_results$estimate/out_results$std.error
+  out_results$conf.low <- out_results$estimate - qnorm(.975)*out_results$std.error
+  out_results$conf.high <- out_results$estimate + qnorm(.975)*out_results$std.error 
+
+  return(out_results)
+}
+
+```
+
+# Estimating the ATEs
+
+Our outcome variables are
+
+- `D1Agree` (Binary agree/disagree with decision)
+- `D2Agree` (Binary agree/disagree with implementing the decision)
+- `D3Agree` (Binary agree/disagree on European courts should have authority)
+
+Our two treatments are
+
+- `caseOutcome` (0 if foreigner deported, 1 if not deported)
+- `caseDefer` (0 if European court overruled domestic, 1 if European court deferred)
+
+We'll subset the data down to the immigration vignette. One last small thing is that the immigration vignette also had some number of observations assigned to a "no court" treatment that omitted any European court involvement -- since the sample size was already large, there was room to include this "placebo" treatment to see if even mentioning a European court affected attitudes. For today we'll ignore that treatment
+
+```{r immigration, message=F, warning=F}
+
+# Only the immigration vignette
+data_immigration <- data %>% filter(vignette == "immigration"&judgment!="nocourt")
+
+# Any missing responses: a tiny proportion of observations was missing
+sum(is.na(data_immigration$D1Agree))
+sum(is.na(data_immigration$D2Agree))
+sum(is.na(data_immigration$D3Agree))
+
+# Negligible missingness (only about 6 obs!) -- not really a problem to drop them - very likely missing at random
+data_immigration <- data_immigration %>% filter(!is.na(D1Agree)&!is.na(D2Agree)&!is.na(D3Agree))
+
+# Summary stats - sample size
+data_immigration %>% group_by(country, caseOutcome, caseDefer) %>% summarize(N=n())
+
+```
+
+Let's estimate the ATE of the case outcome and the deference treatment on support for implementation (D2Agree) (without covariate adjustment)
+
+```{r ate}
+# Remember: `D2Agree` (Binary agree/disagree with implementing the decision)
+
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+summary(ate_outcome)
+
+# Court deference treatment (effect of european court agreeing with domestic)
+ate_defer <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_defer)
+
+```
+
+We might be interested in the effect of one treatment holding the other constant. For that, we include both indicators + an interaction (again, still a fully-saturated model, so it's still just differences in means, but we have 4 means instead of two).
+
+```{r cde}
+# Outcome treatment (effect of immigrant "remaining" in country)
+joint_model <- lm_robust(D2Agree ~ caseOutcome + caseDefer + caseOutcome*caseDefer, data=data_immigration)
+summary(joint_model)
+
+```
+
+How do we interpret the baseline and interaction terms -- what particular effect does the lower-order coefficient on correspond to (and why is it not the ATE)? How do we interpret the interaction term? What do we conclude about whether court deference moderates the effect of the case outcome treatment?
+
+```{r cde 2}
+# Great trick if you want a different interpretation for the lower order terms - just re-level the thing you're interacting with.
+joint_model_2 <- lm_robust(D2Agree ~ caseOutcome + I(1-caseDefer) + caseOutcome*I(1-caseDefer), data=data_immigration)
+summary(joint_model_2)
+```
+
+What if we were to look for heterogeneity in the effect of remain vs. deport by country?
+
+```{r country}
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome_country <- lm_robust(D2Agree ~ caseOutcome + country + caseOutcome*country, data=data_immigration)
+summary(ate_outcome_country)
+```
+What's the interpretation of the lower order coefficient on caseOutcome? Which of the five countries is "left out"? How would we get the effect for Spain?
+
+```{r country 2}
+# Easiest trick is to "re-level" the country factor in R
+data_immigration$country2 <- as.factor(data_immigration$country)
+data_immigration$country2 <- relevel(data_immigration$country2, "spain")
+
+ate_outcome_country2 <- lm_robust(D2Agree ~ caseOutcome + country2 + caseOutcome*country2, data=data_immigration)
+summary(ate_outcome_country2)
+
+```
+
+
+# Adjusting for covariates
+
+Let's compare the covariate-adjusted to the non-covariate adjusted estimates. First, using our strata
+
+```{r}
+## Unadjusted
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+summary(ate_outcome)
+
+## Adjusted
+ate_outcome_adj <- strat_reg(D2Agree ~ caseOutcome, data=data_immigration, stratum=data_immigration$stratum)
+ate_outcome_adj
+
+## Lin estimator is the same!
+ate_outcome_lin <- lm_lin(D2Agree ~ caseOutcome, 
+         covariates = ~stratum, data=data_immigration)
+tidy(ate_outcome_lin) %>% filter(term == "caseOutcome")
+
+# Court deference treatment (effect of european court agreeing with domestic)
+ate_defer <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_defer)
+
+ate_defer_adj <- strat_reg(D2Agree ~ caseDefer, data=data_immigration, stratum=data_immigration$stratum)
+ate_defer_adj
+
+```
+
+Our strata didn't really do that much. This is probably because the covariates didn't really explain the outcome particularly well and at the sample sizes in this experiment (approximately 5k for the immigration study), additional marginal improvements in variance are hard to get without **very** predictive covariates.
+
+```{r}
+# Outcome treatment (effect of immigrant "remaining" in country)
+ate_outcome <- lm_robust(D2Agree ~ caseDefer, data=data_immigration)
+summary(ate_outcome)
+
+# Basically same results with an additive model instead of a fully interacted one (strata)
+ate_outcome_adjusted <- lm_lin(D2Agree ~ caseDefer, covariates = ~ age + college + country + gender, data=data_immigration)
+summary(ate_outcome_adjusted)
+
+```
+
+
+# Visualizing the results
+
+Coppock (2020) has an excellent guide, ["Visualize as you Randomize"](https://alexandercoppock.com/coppock_2020.pdf) on constructing visualizations from experiments, using the underlying design to guide graphics choices. One principle is that a good visualization should give a sense of both the underlying data and the experimental design. For example, if we wanted to visualize the ATE, we could present estimates for the means of the treated and the control groups -- but we might also want to use a plot of the raw observations to give a sense of the sizes of both the treated and the control groups
+
+We'll first want to get the marginal means from the `lm_robust` fit (average under control, average under treated). You can do this manually from the components of `lm_robust` itself -- the mean for control is just $\beta_0$, the mean for treated is $\beta_1 + \beta_0$ and you can calculate the SE for that sum using the variance-covariance matrix. However, this gets tedious with lots of levels and luckily there are packages that will calculate *marginal means* for you -- `ggeffects` is a good one (and was imported above)
+
+```{r, fig.width=4, fig.height=5}
+# Plot the marginal means and the data
+ate_outcome <- lm_robust(D2Agree ~ caseOutcome, data=data_immigration)
+ate_margins <- ggeffects::ggeffect(ate_outcome, terms = "caseOutcome")
+ate_margins <- as_tibble(ate_margins)
+
+# First let's plot the raw data -- add a jitter since it's binary, then add the margins
+# And add transparency (alpha) 
+data_immigration %>% ggplot(aes(x=caseOutcome, y=D2Agree)) + geom_point(position = position_jitter(height=.1, width=.1),
+                                                                        shape = 16,
+                                                                        alpha=.01) + 
+  geom_pointrange(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high), data=ate_margins, size=.2) +
+  theme_bw() +
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+# Compare to just plotting marginal means
+ate_margins %>% ggplot() + geom_pointrange(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() +
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+```
+
+We can compare plotting on top of the raw data with just plotting the marginal means -- some advantages and disadvantages to both -- for example, it's hard to see the confidence intervals with the x-axis scaled from 0 to 1 since we have very high precision, but we do get a clearer sense of the magnitude of the effect. Zooming in makes it easier to see the CIs but narrows the X-axis. 
+
+How about the joint treatment effects? Let's plot them using faceting
+
+```{r, fig.width=5, fig.height=6}
+# Plot the marginal means and the data
+joint_effect <- lm_robust(D2Agree ~ caseOutcome*caseDefer, data=data_immigration)
+joint_margins <- ggeffects::ggeffect(joint_effect, c("caseOutcome","caseDefer"))
+joint_margins
+
+# Make into a table
+joint_margins_tbl <- as_tibble(joint_margins)
+joint_margins_tbl <- joint_margins_tbl %>% mutate(caseOutcome = x) %>% mutate(caseDefer = as.numeric(group)-1) # Rename variables
+
+# Let's make a "labeler"
+outcome_names = c(`0` = "Outcome: Deported",
+                  `1` = "Outcome: Remain")
+
+defer_names = c(`0` = "European court: Overrules",
+                `1` = "European court: Defers")
+
+# Which do we facet on?
+joint_margins_tbl %>% ggplot() + geom_pointrange(aes(x=caseOutcome, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() + facet_wrap(~caseDefer, labeller = as_labeller(defer_names)) + 
+  scale_x_continuous("Outcome of the vignette",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Deported", "Remain")) + ylab("Agree with implementation")
+
+joint_margins_tbl %>% ggplot() + geom_pointrange(aes(x=caseDefer, y=predicted, ymin=conf.low, ymax=conf.high), size=.4) +
+  theme_bw() + facet_wrap(~caseOutcome, labeller = as_labeller(outcome_names)) + 
+  scale_x_continuous("European court decision",breaks=c(0,1), limits=c(-.25,1.25), labels=c("Overrule", "Defer")) + ylab("Agree with implementation")
+
+```
+
+Compare the two figures above -- they display the same information, but what does each figure focus on? Which conditional ATEs does the first emphasize vs. the second?
+
+# Challenge
+
+Visualize the ATEs on the 6-point approval scale `D2AgreeC` instead of the binary indicator -- plot the marginal means on top of the raw data (use jitter). What do you find?

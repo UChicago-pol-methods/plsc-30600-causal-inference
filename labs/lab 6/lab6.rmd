@@ -1,0 +1,164 @@
+---
+title: "PLSC 30600 - Lab 6 - Instrumental Variables"
+author: ''
+date: "5/5/2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clean memory
+rm(list = ls())
+
+# use packages
+library(tidyverse)
+library(haven) # to read Stata files
+library(ggrepel) # label points on R
+library(AER) # package for IV regression
+library(ivmodel) # package for IV with one endogenous variable
+
+# get working directory
+data_path <- paste0(dirname(getwd()), "/lab6/")
+```
+
+# Acemoglu et al. (2001): The Effect of Institutions on Economic Development
+
+This is a classic piece on studying the causal effect of institutions on economic development. The data can be downloaded from Acemoglu's website: https://economics.mit.edu/faculty/acemoglu/data/ajr2001.
+
+The key variables in this paper are:
+
+- `logpgp95` - Outcome: Log GDP Per Capita, PPP, 1995
+- `avexpr` - Treatment: Average Expropriation Risk 1985-95
+- `logem4` - Instrument: Log of Settler Mortality
+
+To address the endogeneity problem of institution, Acemoglu et al. (2001) uses an IV strategy to isolate exogenous variations in institutions. The instrument is the settler mortality. The idea of the instrument is the following. If the settler mortality is low, Europeans migrated and settled in those colonies and created "Neo-Europes", which replicated European institutions with strong emphasis on private property and checks against government power. If the settler mortality is high, Europeans set up "extractive states" which does not introduce much protection for private property, nor did they provide checks and balances against government power. And the colonization state and institutions persisted. Thus, we expect a positive correlation between settler mortality and institutional quality.
+
+## Figure 1: Reduced-Form Relationship
+
+We first reproduce Figure 1, which is the reduced form relationship between log settler mortality and income. From the figure, we see a negative correlation here, the higher the settler mortality, the lower the income in 1995.
+```{r}
+# read data
+fig1_dta <- read_dta(paste0(data_path, "maketable3.dta"))
+
+# make figure
+fig1_dta %>% ggplot(aes(x = logem4, y = logpgp95)) + 
+  geom_point() + 
+  geom_smooth(method="lm", formula = y ~ x) + 
+  xlab("Log of Settler Mortality") + 
+  xlim(3, 8) + 
+  ylab("Log GDP Per Capita, PPP, 1995")
+```
+
+## Figuer 2: Correlation between Expropriation Risk and Income
+
+We now reproduce Figure 2, which is the raw correlation between expropriation risk and income. From the figure, we observe a strong positive correlation between institution quality and economic development.
+```{r}
+# read data
+fig2_dta <- read_dta(paste0(data_path, "maketable2.dta"))
+
+# make figure
+fig2_dta %>% ggplot(aes(x = avexpr, y = logpgp95)) + 
+  geom_point() + 
+  geom_smooth(method="lm", formula = y ~ x) + 
+  geom_text_repel(aes(label = shortnam), size = 3) + 
+  xlab("Average Expropriation Risk 1985-95") + 
+  xlim(3, 10) + 
+  ylab("Log GDP Per Capita, PPP, 1995")
+```
+
+## Figuer 3: First Stage Plot
+
+We now reproduce Figure 3. The figure shows a strong negative correlation between log settler mortality and institutional quality.
+```{r}
+# read data
+fig3_dta <- read_dta(paste0(data_path, "maketable3.dta"))
+
+# make figure
+fig3_dta %>% ggplot(aes(x = avexpr, y = logem4)) + 
+  geom_point() + 
+  geom_smooth(method="lm", formula = y ~ x) + 
+  xlab("Log of Settler Mortality") + 
+  xlim(3, 10) + 
+  ylab("Average Expropriation Risk 1985-95")
+```
+
+## Table 4: Baseline IV Results
+
+We now use the ivmodel package and AER package to replicate Column (1) in Table 4 in Acemoglu et al. (2001). The results are qualitatively the same with the original results, and the sample size is slightly different. Note that ivmodel reports the Anderson-Rubin test results. The test is robust to weak identification, i.e., when IV is weak. The idea is based on inverting the test. For a testbook treatment of the AR test, see section 5.1 in Andrews et al. (2019).
+```{r}
+# read data
+tab4_dta <- read_dta(paste0(data_path, "maketable4.dta"))
+tab4_dta_full <- tab4_dta[complete.cases(tab4_dta),]
+
+# use ivmodel package to reproduce IV estimates
+outcome <- as.numeric(tab4_dta$logpgp95)
+treatment <- as.numeric(tab4_dta$avexpr)
+instrument <- as.numeric(tab4_dta$logem4)
+
+ajr_iv_ivmodel <- ivmodel(Y = outcome, D = treatment, Z = instrument)
+ajr_iv_ivmodel
+
+# use AER package to reproduce IV estimates
+ajr_iv_aer <- ivreg(logpgp95 ~ avexpr | logem4, data = tab4_dta)
+summary(ajr_iv_aer)
+ajr_iv_aer_coef <- ivreg(logpgp95 ~ avexpr | logem4,
+                         data = tab4_dta)$coefficients[2]
+```
+
+## One More Remark on Acemoglu et al. (2001)
+
+Acemoglu et al. (2001) does not give the IV estimator a LATE type interpretation. What deviates from the baseline IA IV model is that the treatment is not binary. However, we still can extend the LATE frame work to the case when the treatment is non-binary. As far as I know, the following paper, Masten and Torgovitsky (2016), is relevant.
+
+## Do Not Compute the Bootstrap Standard Error for Instrumental Variable
+
+Hahn and Liao (2021) shows that the boostrap standard error is usually too ``large'', in their simulation, they use an exact identified IV model to illustrate the theoretical point. Moreover, in finite samples the 2SLS estimator may not have a finite second moment, which implies that bootstrap standard error estiamtes are unstable and un reliable (Hansen, 2021). Let us now see how things goes in Acemoglu et al. (2001) data. In this example, the bootstrap standard error is around 1.6 times as large as the standard error reported in AER/ivmodel package (0.2037 vs. 0.1250).
+```{r}
+# set seed to make results replicable
+set.seed(60637)
+
+# create bootstrap vector
+n_iteration <- 5000
+iv_boot <- rep(NA, n_iteration)
+
+# bootstrap iteration
+for(i in 1:n_iteration){
+  
+  # resample with replacement
+  tab4_dta_boot <- tab4_dta[sample(1:nrow(tab4_dta), 
+                                   nrow(tab4_dta), 
+                                   replace=T),]
+  
+  # run iv model using AER package with the bootstrap data
+  iv <- ivreg(logpgp95 ~ avexpr | logem4, data = tab4_dta_boot)$coefficients[2]
+  iv_boot[i] <- iv
+  
+}
+
+# display bootstrap standard error and associated confidence interval
+boot_iv_se <- sd(iv_boot)
+boot_iv_se
+
+c(ajr_iv_aer_coef - qnorm(.975)*boot_iv_se, 
+  ajr_iv_aer_coef + qnorm(.975)*boot_iv_se)
+
+# bootstrap percentile method
+quantile(iv_boot, c(0.025, 0.975))
+
+# compare with the CI from AER package
+c(ajr_iv_aer_coef - qnorm(.975)*0.1250, 
+  ajr_iv_aer_coef + qnorm(.975)*0.1250)
+```
+
+## References
+Acemoglu, Daron, Simon Johnson, and James A. Robinson. "The colonial origins of comparative development: An empirical investigation." American Economic Review 91, no. 5 (2001): 1369-1401.
+
+Andrews, Isaiah, James H. Stock, and Liyang Sun. "Weak instruments in instrumental variables regression: Theory and practice." Annual Review of Economics 11 (2019): 727-753.
+
+Hahn, Jinyong, and Zhipeng Liao. "Bootstrap standard error estimates and inference." Econometrica 89, no. 4 (2021): 1963-1977.
+
+Hansen, Bruce. "Econometrics." Unpublished Manuscript, (2021).
+
+Masten, Matthew A., and Alexander Torgovitsky. "Identification of instrumental variable correlated random coefficients models." Review of Economics and Statistics 98, no. 5 (2016): 1001-1005.
