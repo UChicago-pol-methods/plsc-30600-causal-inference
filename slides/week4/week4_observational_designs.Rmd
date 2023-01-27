@@ -28,7 +28,7 @@ output:
 
   - What happens when **ignorability** does not hold?
     - Treatment is not randomly assigned - we have an *observational* design.
-    - Treatment assignment may be driven by 
+    - Treatment assignment may be driven by other factors that also predict the outcome
   - Selection-on-observables assumptions
     - Treatment is ignorable **conditional** on observed covariates
   - Estimation under selection-on-observables
