@@ -933,7 +933,7 @@ hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
 ```{tikz, example, echo=F, fig.align='center'}
 \usetikzlibrary{arrows}
 \begin{tikzpicture}
-\node (d1) at (0,0) {$D_1$};
+\node (d1) at (0,-1) {$D_1$};
 \node (d2) at (1, 0) {$D_2$};
 \node (x1) at (1,1) {$X_1$};
 \node (y) at (2,0) {$Y$};
