@@ -477,7 +477,7 @@ class: title-slide
 
 - Classical approaches to the linear regression model focus on justifying inference under a particular parametric model
 
-$$Y_i | X_i \sim \mathcal{N}(X_i^{\prime}\beta, \sigma^2)$$
+$$Y_i | X_i \sim \mathcal{N}(\beta_0 + \beta_1 X_{i1} + \beta_2X_{i2} + \dotsc, \sigma^2)$$
 
 - OLS is BLUE under the Gauss-Markov assumptions. It's the MLE under a normal outcome model.
 --
@@ -500,15 +500,13 @@ $$\beta = \underset{b}{\text{arg min }} E[(Y_i - X_i^{\prime}b)^2]$$
 
 - We'll estimate it from our sample using OLS:
 
-$$\hat{\beta} = \left[\sum_{i=1}^N\left[X_i X_i^{\prime} \right]\right]^{-1} \sum_{i=1}^N[X_iY_i] =  (X^{\prime}X)^{-1}X^{\prime}Y$$
-
 ---
 
 # Justifying linear regression
 
 - One justification for linear regression is when the true population CEF $E[Y_i | X_i]$ is actually linear. In that case,
 
-$$E[Y_i | X_i] = X_i^{\prime}\beta$$
+$$E[Y_i | X_i] = X_i^{\prime}\beta = \beta_0 + \beta_1X_{i1} + \beta_2X_{i2} + \dotsc$$
 - In this setting, our OLS estimator is unbiased and consistent for the true CEF
 --
 
@@ -790,11 +788,46 @@ $$Y_i = \alpha + \tau_{\text{R}} D_i + X_i^{\prime}\beta + \epsilon_i$$
 
 ---
 
+# Frisch-Waugh-Lovell
+
+- An important theorem (that you will spend more time with in Linear Models) is that the coefficients in a multiple linear regression can be written by **partialling out** correlations with the other covariates.
+  - The **Frisch-Waugh-Lovell** theorem!
+--
+
+- Consider estimating the following by OLS:
+
+$$Y_i = \beta_0 + \beta_1 X_{i1} + \epsilon_{i}$$
+- The standard least-squares estimator for $\beta_1$ can be expressed as the ratio of the sample covariance of $X_{i1}$ and $Y_i$ and the variance of $X_{i1}$
+
+$$\hat{\beta_1} = \frac{\widehat{Cov}(Y_i, X_{i1})}{\widehat{Var}(X_{i1})} \to \frac{Cov(Y_i, X_{i1})}{Var(X_{i1})}$$
+---
+
+
+# Frisch-Waugh-Lovell
+
+- Now what happens with a multiple linear regression - how do we write $\beta_1$ when the model is
+
+$$Y_i = \beta_0 + \beta_1 X_{i1} + \beta_2 X_{i2} + \epsilon_{i}$$
+--
+
+- It turns out that $\beta_1$ can be written in terms of a bivariate regression 
+
+$$\hat{\beta_1} = \frac{\widehat{Cov}(\tilde{Y}_i, \tilde{X}_{i1})}{\widehat{Var}(\tilde{X}_{i1})} \to \frac{Cov(\tilde{Y}_i, \tilde{X}_{i1})}{Var(\tilde{X}_{i1})}$$
+
+- $\tilde{Y_i}$ is the residual from a regression of $Y_i$ on all of the other covariates (here, just $X_{i2}$)
+- $\tilde{X_{i1}}$ is the residual from a regression of $X_{i1}$ on all of the other covariates ($X_{i2}$ here)
+
+--
+
+- And for $\beta_1$, it's equivalent to write it as a regression of just $Y_i$ on $\tilde{X_{i1}}$
+
+---
+
 # Regression weighting
 
-- Recall the Frisch-Waugh-Lovell theorem. In a multiple regression setting, we can write an expression for the treatment coefficient as
+- Under the Frisch-Waugh-Lovell theorem. we can write an expression for the treatment coefficient as
 
-$$\tau_\text{R} = \frac{Cov(Y_i, \tilde{D_i})}{Var(\tilde{D_i})} $$
+$$\tau_\text{R} = \frac{Cov(Y_i, \tilde{D_i})}{Var(\tilde{D_i})}$$
 where $\tilde{D_i}$ is the residual from a regression of $D_i$ on all of the other covariates.
 
 --
@@ -890,6 +923,28 @@ hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
 
 - For more, see
 > Westreich, Daniel, and Sander Greenland. "The table 2 fallacy: presenting and interpreting confounder and modifier coefficients." American journal of epidemiology 177.4 (2013): 292-298.
+
+---
+
+# Beware the Table 2 fallacy
+
+- Depending on the DAG, you might get multiple effects out of a single analysis, but it's a **very** specific set of assumptions:
+
+```{tikz, example, echo=F, fig.align='center'}
+\usetikzlibrary{arrows}
+\begin{tikzpicture}
+\node (d1) at (0,-1) {$D_1$};
+\node (d2) at (1, 0) {$D_2$};
+\node (x1) at (1,1) {$X_1$};
+\node (y) at (2,0) {$Y$};
+\draw[->, >=stealth, thick] (x1) -- (y);
+\draw[->, >=stealth, thick] (x1) -- (d2);
+\draw[->, >=stealth, thick] (d1) -- (y);
+\draw[->, >=stealth, thick] (d2) -- (y);
+\end{tikzpicture}
+```
+
+
 ---
 
 # Overview
@@ -901,7 +956,7 @@ hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
 
 - How do we know if $X_i$ is the right set of covariates?
   - Theory! + (some) knowledge of the treatment assignment process.
-  - DAGs as a tool for synthesizing theory about 
+  - DAGs as a tool for synthesizing theory about known effects
 --
 
 - Once we think selection-on-observables is a plausible **identification strategy**, then we have some choice in our **estimation** approach:
