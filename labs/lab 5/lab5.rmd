@@ -1,10 +1,10 @@
 ---
 title: "PLSC 30600 - Lab 5 - Matching and Regression"
-author: ''
-date: "4/29/2022"
+date: "02/03/2023"
 output:
-  html_document: default
+  pdf_document: default
   word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -37,6 +37,9 @@ The code below load these datasets
 ```{r, warning=F, message=F}
 benchmark <- haven::read_dta("nsw_exper.dta")
 lalonde <- haven::read_dta("nsw_psid_withtreated.dta")
+
+View(benchmark)
+View(lalonde)
 ```
 
 # Observational results vs. experimental benchmark
@@ -58,9 +61,34 @@ In the observational data, the estimated "effect" of the program is around -15K 
 
 ```{r balance}
 # Experimental data
+benchmark %>%
+  group_by(nsw) %>%
+  summarise(age = mean(age),
+            educ = mean(educ),
+            black = mean(black),
+            hisp = mean(hisp),
+            married = mean(married),
+            re74 = mean(re74),
+            re75 = mean(re75),
+            u74 = mean(u74),
+            u75 = mean(u75))
+
 cobalt::bal.tab(benchmark %>% select(age, educ, black, hisp, married, re74, re75, u74, u75), treat=benchmark$nsw, binary="std", sd.denom="pooled")
 
 # Observational data
+
+lalonde %>%
+  group_by(nsw) %>%
+  summarise(age = mean(age),
+            educ = mean(educ),
+            black = mean(black),
+            hisp = mean(hisp),
+            married = mean(married),
+            re74 = mean(re74),
+            re75 = mean(re75),
+            u74 = mean(u74),
+            u75 = mean(u75))
+
 cobalt::bal.tab(lalonde %>% select(age, educ, black, hisp, married, re74, re75, u74, u75), treat=lalonde$nsw, binary="std", sd.denom="pooled")
 
 ```
@@ -103,7 +131,7 @@ lalonde %>% filter(u75 == 0) %>% ggplot(aes(x=log(re75), y=re78, colour = as.fac
 
 ```
 
-Why are these choices so consequential? Because there is very poor overlap between the distribution of the treated units and the control units. So a model fit to the entire control distribution. We might try transforming the outcome (and change the quantity of interest) to get a more plausible linear CEF (common with log-log relationships). Note here we have zeroes in the outcome (unemployment), so a log-transform will need to address this - the inverse hyperbolic sine is popular, but arguably just as arbitrary as taking `log(x+1)`
+Why are these choices so consequential? Because there is very poor overlap between the distribution of the treated units and the control units. So a model fit to the entire control distribution. We might try transforming the outcome (and change the quantity of interest) to get a more plausible linear Conditional Expectation Function - CEF (common with log-log relationships). Note here we have zeroes in the outcome (unemployment), so a log-transform will need to address this - the inverse hyperbolic sine is popular, but arguably just as arbitrary as taking `log(x+1)`
 
 ```{r}
 ihs <- function(x) {
@@ -137,6 +165,7 @@ match_result <- Matching::Match(Y = lalonde$re78, Tr = lalonde$nsw, X = lalonde 
 
 summary(match_result)
 ```
+
 We get a *lot* closer to the experimental benchmark! Let's calculate the "matching weights' for each observation and see what's going on.
 
 ```{r}
@@ -144,13 +173,18 @@ match_weights = table(c(match_result$index.control, match_result$index.treated))
 lalonde$matchweight <- 0
 lalonde$matchweight[as.numeric(names(match_weights))] <- match_weights # match_weights is the weight for each row number - this is a quick trick to assign the weights to the right rows
 
+View(lalonde)
+
 # What's the share of observations with 0 weight
 mean(lalonde$matchweight == 0)
+nrow(lalonde)
 
 # Subset the data to post-matching observations
 lalonde_postmatch <- lalonde %>% filter(matchweight != 0)
+nrow(lalonde_postmatch)
 
 ``` 
+
 Matching throws away about 90\% of the data! Let's see what this means for estimating the CEF of re78 given re75.
 
 ```{r}
