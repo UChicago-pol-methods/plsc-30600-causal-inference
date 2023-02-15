@@ -773,7 +773,7 @@ panelview(data=union, D="CBrequired_SY", index=c("State", "year"), axis.adjust=T
 
 - **Intuition**: Frisch-Waugh-Lovell
 
-$$\hat{\tau} = \frac{\sum_{i,t} (D_{it} - \hat{D_{it}}) Y_{it}}{\sum_{i,t}(D_{it} - \hat{D_{it}})^2} $$
+$$\hat{\tau} = \frac{\sum_{i,t} (D_{it} - \hat{D_{it}}) Y_{it}}{\sum_{i,t}(D_{it} - \hat{D_{it}})^2}$$
 - *Two* sources of bias
   - External validity -- Groups with more ``variable" treatment timings (e.g. groups that start treatment towards the middle of the time-series) receive more weight.
   - Internal validity - 2-way FE uses *future* periods where two units share the same treatment status as part of the second ``de-biasing" difference. If effects persist over time these are not going to be equal to the selection bias.
