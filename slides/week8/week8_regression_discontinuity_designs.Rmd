@@ -12,18 +12,6 @@ output:
   
 ---
 
-# Midterm 
-
-- Overall, great work - not much curving needed:
-  - 47-50: A
-  - 45-47: A-
-  - 44: B+
-  - 40-43: B
-  - 35-39: B-
-  - Below 35: C
-
----
-
 # Last two weeks
 
 - Techniques for addressing **unobserved confounding**
