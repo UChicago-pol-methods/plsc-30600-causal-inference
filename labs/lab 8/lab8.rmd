@@ -1,7 +1,6 @@
 ---
 title: "PLSC 30600 - Lab 8 - Regression Discontinuity Design"
-author: ''
-date: "5/19/2022"
+date: "02/23/2023"
 output:
   html_document: default
   pdf_document: default
@@ -21,9 +20,9 @@ library(tidyverse)
 
 # Meyersson (2014) - "Islamic Rule and the Empowerment of the Poor and Pious"
 
-In this lab, we will illustrate how to conduct RD analysis with the rdrobust packages. The data comes from Meyersson (2014), and can be downloaded from: https://github.com/rdpackages-replication/CIT_2019_CUP/blob/master/CIT_2019_Cambridge_polecon.dta. Note that all the the codes in this R file can be found from Cattaneo et al. (2019), which is a very nice handbook on the practical guide of running RD analysis.
+In this lab, we will illustrate how to conduct RD analysis with the rdrobust packages. The data comes from Meyersson (2014), and can be downloaded from: https://github.com/rdpackages-replication/CIT_2020_CUP/blob/master/CIT_2020_CUP_polecon.dta. Note that all the codes in this R file can be found from Cattaneo et al. (2019), which is a very nice handbook on the practical guide of running RD analysis.
 
-Meyersson (2014) studies the effect of electing Islamic part on women's education. The variables in the datasets are:
+Meyersson (2014) studies the effect of electing Islamic party on women's education. The variables in the datasets are:
 
 - `Y` - educational attainment of women, measured as the percentage of women aged 15 to 20 in 2000 who had completed high school by 2000
 - `X` - vote margin obtained by the Islamic party in the 1994 Turkish mayoral elections, measured as the vote percentage obtained by the Islamic party minus the vote percentage obtained by its strongest secular party opponent.
@@ -36,6 +35,7 @@ Meyersson (2014) studies the effect of electing Islamic part on women's educatio
 - `merkezp` - Province Center Indicator
 - `merkezi` - District Center Indicator
 
+
 ```{r}
 # load data from Meyersson (2014, ECTA)
 meyersson_2014ecta <- read_dta("meyersson_2014ecta.dta")
@@ -44,17 +44,28 @@ meyersson_2014ecta <- read_dta("meyersson_2014ecta.dta")
 Y <- meyersson_2014ecta$Y
 X <- meyersson_2014ecta$X
 T <- meyersson_2014ecta$T
-T_X <- T*X
+
+# Analyzing the running variable
+meyersson_2014ecta %>%
+  group_by(T) %>%
+  summarize(count = n(),
+            vore_share = mean(X))
+
 ```
 
 # RD validity tests
 
 The first validity test is to test whether or not the density of the running variable is continuous at the cutoff. The idea is that if people can manipulate the running variable to sort themselves to a side where they expect benefits, we would observe discontinuity of the density of the running variables at the cutoff. In Meyersson (2014), we fail to reject the null that there is a manipulation of running variable.
+
++ Running variable test
+
 ```{r}
 # test H0: the density of the running variable is continuous at the cutoff
 out <- rddensity(X)
 summary(out)
+```
 
+```{r}
 # plot histogram of running variable
 bw_left <- as.numeric(rddensity(X)$h[1])
 bw_right <- as.numeric(rddensity(X)$h[2])
@@ -77,7 +88,10 @@ plot2 <- ggplot(data=tempdata, aes(tempdata$v1)) +
   labs(x = "Score", y = "Number of Observations") + 
   geom_vline(xintercept = 0, color = "black")
 plot2
+```
 
+
+```{r}
 # plot the density of the running variable
 est1 <- lpdensity(data = X[X < 0 & X >= -bw_left], 
                  grid = seq(-bw_left, 0, 0.1), 
@@ -100,8 +114,10 @@ plot1 <- lpdensity.plot(est1,
 plot1
 ```
 
++ Covariates variation test
 
 The other RD validity test is to test whether or not pre-treatment covariates vary smoothly at the threshold. The idea is that if individuals cannot perfectly manipulate the running variable near the threshold, then, there should be no systematic differences on pre-treatment covariates around the threshold.
+
 ```{r}
 # Log Population in 1994
 out <- rdrobust(meyersson_2014ecta$lpop1994, X)
@@ -128,6 +144,8 @@ out <- rdrobust(meyersson_2014ecta$merkezi, X)
 summary(out)
 ```
 
++ Placebo tests
+
 We can also test whether or not there are jumps on the outcome at placebo cutoffs. The idea is that if the RD design works, we will only observe a jump at the true cutoff.
 ```{r}
 # placebo tests of placebo cutoffs
@@ -153,6 +171,7 @@ summary(out)
 # Using RD Plots to Present the Resutls Visually
 
 Before using regression to present the RD results, it is often useful to to draw the plot to show the readers that there is a jump of the outcome at the cutoff. We can use the rdplot package to draw such plot. From the plot that uses Meyersson (2014) data, we can see that there is graphical evidence that electing Islamic part increases woman's education.
+
 ```{r}
 # plot the raw data
 plot(X, 
@@ -185,6 +204,7 @@ summary(out)
 # Regression Presentation of the RD estimator
 
 We now proceed to use the rdrobust package to produce an estimate and the associated confidence interval of the RD estimand. The rdrobust package can use robust bias correction for constructing confidence intervals, which has smaller coverage errors than competing approaches. Overall, the results show that there is a positive effect of electing Islamic party on women's education. The results are significant at 10\% level when not conditioning on covariates, and are significant at 5\% level when conditioning on covariates.
+
 ```{r}
 # rdrobust without covariates
 out <- rdrobust(Y, 
