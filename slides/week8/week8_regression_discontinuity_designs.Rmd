@@ -617,7 +617,7 @@ $$\lim_{x \to c^{+}} E[Y_i | X_i = x] - \lim_{x \to c^{-}} E[Y_i | X_i = x]  = E
 - Need one more assumption: monotonicity: $D_i(1) \ge D_i(0)$
   - A "no-defiers" assumption at the discontinuity.
   - No one who refuses the treatment when above the cut-off would take the treatment if they were below the cut-off. 
-  - No one who takes the treatment when below the cut-off would take it if they were above the cut-off.
+  - No one who takes the treatment when below the cut-off would not take it if they were above the cut-off.
 --
 
 - Under continuity and monotonicity, we get a familiar ratio estimator
@@ -632,14 +632,19 @@ $$\frac{\lim_{x \to c^{+}} E[Y_i | X_i = x] - \lim_{x \to c^{-}} E[Y_i | X_i = x
 - We can just take the ratio of the two regression coefficients from the reduced form and the first stage RDs
 --
 
-- To get CIs, we can do this with a 2SLS approach - for a (local) linear model.
+- Or we can do this with a 2SLS approach - for a (local) linear model.
 - First stage
 
-$$D_i = \delta_0 + \rho \mathbb{I}(X_i \ge c) + \delta_1(X_i - c) + \delta_2(X_i - c)\mathbb{I}(X_i \ge c) $$
+$$D_i = \delta_0 + \rho \mathbb{I}(X_i \ge c) + \delta_1(X_i - c) + \delta_2(X_i - c)\mathbb{I}(X_i \ge c)$$
 
 - Second stage
 
-$$Y_i = \beta_0 + \tau D_i + \beta_1(X_i - c) + \beta_2(X_i - c)\mathbb{I}(X_i \ge c) $$
+$$Y_i = \beta_0 + \tau \tilde{D_i} + \beta_1(X_i - c) + \beta_2(X_i - c)\mathbb{I}(X_i \ge c)$$
+where $\tilde{D_i}$ is the instrumented-for treatment variable (fitted values from the first stage)
+
+--
+
+- Note that the cutpoint indicator still appears in the second-stage to allow for the more flexible linear model above and below the cutpoint.
 --
 
 - All weak instrument problems still apply here! Need a strong first stage to do reliable inference.
