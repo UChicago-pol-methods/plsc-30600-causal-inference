@@ -476,7 +476,7 @@ lm_robust(y ~ d + d*I(x-0)+ d*I((x-0)^2), data=house %>% filter(abs(x) < .1), we
 
 - Quadratic: Uniform kernel 
 
-```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+```{r, echo=T, message=F, warning=F, fig.align="center", fig.height=5.5}
 house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) + 
   stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x + I(x^2), data=house %>% filter(abs(x) < .1)) +
   geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.1, lty=3) + geom_vline(xintercept=.1, lty=3) + theme_bw() + theme(legend.position="none") + xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
@@ -488,7 +488,7 @@ house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d))) +
 
 - Quadratic: Triangular kernel
 
-```{r, echo=T, message=F, fig.align="center", fig.height=5.5}
+```{r, echo=T, message=F, warning=F, fig.align="center", fig.height=5.5}
 house %>% filter(abs(x) < .2) %>% ggplot(aes(x=x, y=y, colour=as.factor(d), weight=kernelwt)) + 
   stat_summary_bin(fun='mean', bins=20, size=2, geom='point') + geom_smooth(method="lm_robust", formula = y ~ x + I(x^2), data=house %>% filter(abs(x) < .1)) +
   geom_vline(xintercept=0, lty=2) + geom_vline(xintercept=-.1, lty=3) + geom_vline(xintercept=.1, lty=3) + theme_bw() + theme(legend.position="none") + xlab("Democratic margin of victory at time t") + ylab("Democratic vote share at time t+1")
