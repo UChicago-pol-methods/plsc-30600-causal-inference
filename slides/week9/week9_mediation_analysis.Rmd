@@ -351,13 +351,10 @@ class: title-slide
 1. Run the regression of $Y_i$ on everything
 
 $$Y_i = \gamma_0 + \gamma_1 D_i + \gamma_2 M_i + X_i^{\prime}\gamma_3 + L_i^{\prime} \gamma_4 + \epsilon_i$$
-
 2. Take $\hat{\gamma_2}$ as the effect of the mediator on the outcome and create a "blipped-down" outcome that removes the effect of the mediator on $Y_i$: $\tilde{Y_i} = Y_i - \hat{\gamma}_2M_i$
-
 3. Regress $\tilde{Y_i}$ on $D_i$ and $X_i$ only
 
 $$\tilde{Y_i} = \beta_0 + \beta_1 D_i + X_i^{\prime}\beta_3 + \epsilon_i$$
-
 4. $\hat{\beta_1}$ is our estimate of the $\text{CDE}(0)$
 
 ---
