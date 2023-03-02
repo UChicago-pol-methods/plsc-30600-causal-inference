@@ -144,29 +144,6 @@ out <- rdrobust(meyersson_2014ecta$merkezi, X)
 summary(out)
 ```
 
-+ Placebo tests
-
-We can also test whether or not there are jumps on the outcome at placebo cutoffs. The idea is that if the RD design works, we will only observe a jump at the true cutoff.
-```{r}
-# placebo tests of placebo cutoffs
-out <- rdrobust(Y[X <= 0], X[X <= 0], c = -3)
-summary(out)
-
-out <- rdrobust(Y[X <= 0], X[X <= 0], c = -2)
-summary(out)
-
-out <- rdrobust(Y[X <= 0], X[X <= 0], c = -1)
-summary(out)
-
-out <- rdrobust(Y[X >= 0], X[X >= 0], c = 1)
-summary(out)
-
-out <- rdrobust(Y[X >= 0], X[X >= 0], c = 2)
-summary(out)
-
-out <- rdrobust(Y[X >= 0], X[X >= 0], c = 3)
-summary(out)
-```
 
 # Using RD Plots to Present the Resutls Visually
 
