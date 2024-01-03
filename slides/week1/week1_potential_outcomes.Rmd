@@ -8,6 +8,7 @@ output:
     css: [default, uchicago_pol_meth.css]
     nature:
       highlightLines: true
+      ratio: '16:9'
   
 ---
 class: title-slide
@@ -21,15 +22,15 @@ $$
 # Course Overview
 
 - Instructor: .maroon[Anton Strezhnev]
-- TA: .maroon[Oscar Cuadros]
+- TA: .maroon[Zikai Li]
 --
 
 - Logistics:
-  - Lectures T/Th - 11:00am - 12:20pm; Sections F - 10:30 - 11:20am
+  - Lectures M/W - 3:00pm - 4:20pm; Sections F - 11:30am - 12:20pm
   - 3 Problem Sets (~ 2 weeks)
   - Take-home midterm and final (~ 1 week)
   - My office hours: Tuesdays 4pm-6pm (Pick 328)
-  - Oscar's office hours: Fridays TBD
+  - Zikai's office hours: Fridays after section (12:30-1:30)
 --
 
 - What is this course about?
@@ -68,31 +69,28 @@ $$
 # Course workflow
 
 - .maroon[Problem sets] (25% of your grade)
-  - Main component of the class -- meant to get you working with your colleagues and
+  - Main day-to-day component of the class -- meant to get you working with your colleagues and
   thinking hard about the material.
-  - The goal is learning by doing. So we won't be grading on correctness but more 
-  on effort.
-  - Solutions **will be posted** a week after the problem set is released. You
-  should work on the problem sets without them but check your work afterward.
-  - In addition to your write-up, you will also submit a brief survey about which questions
-  you found challenging and needed to consult the solutions for + any concepts that are still unclear
-  - Collaboration is **strongly encouraged** -- you should ask and answer questions on our private class
-  Stack Overflow (link + invitation in the syllabus).
+  - Collaboration is **strongly encouraged** -- you should ask and answer questions on our class 
+  Ed Discussion board
+  - Grading is on a **plus/check/minus** scale. 
+    - Conversion to grade point is somewhat hollistic. 
+    - Majority plusses is an A, Majority checks is an A-, Majority minus is a B
+  - Solutions will be posted after the due-date.
   
 ---
 
 # Course workflow
 
 - .maroon[Exams] (65% of your grade)
-  - Exams will be structured like the problem sets with three main differences:
-      1. Slightly shorter (you have about 1 week to complete them instead of 2)
-      2. You are graded on correctness (solutions obviously will not be posted)
-      3. You may **not** collaborate with one another on the exams.
+  - Exams will be structured like the problem sets with two main differences:
+      1. You have about 1 week to complete them instead of 2
+      2. You may **not** collaborate with one another on the exams.
 --
 - .maroon[Participation] (10% of your grade)
   - It is important that you actively engage with lecture and section -- ask and answer questions.
   - Do the reading! 
-  - Participating on Stack Overflow counts towards this as well.
+  - Participating on Ed counts towards this as well.
 
 
 ---
@@ -146,9 +144,7 @@ class: title-slide
 # Random variables
 
   - Understanding the behavior and properties of .maroon[random variables] is at the core of statistical theory.
-  - A random variable $X$ is a mapping from a **sample space** to the real number line
-    - Measure theory gives a more general and precise definition (mapping to a *measureable space*), but we'll only really
-    work with real-valued r.v.s
+  - (Simply put) a random variable $X$ is a mapping from a **sample space** to the real number line
 --
   - Random variables have a *distribution* (which we may or may not assume we know) defined by the cumulative distribution function 
   (CDF)
@@ -519,7 +515,7 @@ class: title-slide
     - What happens to an outcome when a treatment is changed.
 --
   - It's very difficult to learn about vague causal statements:
-    - What is the effect of growth on democracy?
+    - What is the effect of growth on democracy or conflict?
     - What is the effect of exercise on health?
 --
   - The .maroon[potential outcomes] framework clarifies:
