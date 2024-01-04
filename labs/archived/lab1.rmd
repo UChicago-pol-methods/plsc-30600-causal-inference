@@ -1,7 +1,7 @@
 ---
 title: "PLSC 30600 - Lab 1 - Monte Carlo Simulation"
 author: ''
-date: "4/01/2022"
+date: "1/5/2024"
 output:
   pdf_document: default
   word_document: default
