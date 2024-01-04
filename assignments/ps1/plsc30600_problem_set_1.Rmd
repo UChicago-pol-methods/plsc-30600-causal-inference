@@ -115,7 +115,7 @@ Subset the data down to only those respondents who were able to be contacted and
 
 ## Part F
 
-Repeat your analysis from Part E but using the **change** in the feeling thermometer from the 3-day survey to the baseline as the outcome. Compare the two sets of results and discuss any differences that you observe. Which approach is better and why?
+Repeat your analysis from Part E but using the **change** in the feeling thermometer from the baseline to the 3-day survey as the outcome. Compare the two sets of results and discuss any differences that you observe. Which approach is better and why?
 
 # Problem 3
 
