@@ -32,7 +32,7 @@ H_0: \lambda=\lambda_0 \quad \text { v.s. } \quad H_1: \lambda \neq \lambda_0 \q
 $$
 
 ## Consistency
-The consistency assumption states that if an individual is observed under treatment condition $T$, the potential outcome under this treatment is the same as the observed outcome. Mathematically, it can be represented as:
+The consistency assumption states that if an individual is observed under treatment condition $D$, the potential outcome under this treatment is the same as the observed outcome. Mathematically, it can be represented as:
 
 $$
 Y_i(D_i) = Y_i \quad \text{if} \quad D_i = d
