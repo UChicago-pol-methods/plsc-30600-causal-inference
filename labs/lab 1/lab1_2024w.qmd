@@ -24,7 +24,7 @@ library(tidyverse)
 
 ## A simple example of frequentist inference
 
-For any $\alpha \in (0,1)$, use the Central Limit Theorem to define a test with asymptotic level $\alpha$, then give a formula for the asymptotic -value of your test, for the following scenario:
+For any $\alpha \in (0,1)$, use the Central Limit Theorem to define a test with asymptotic level $\alpha$, then give a formula for the asymptotic p-value of your test, for the following scenario:
 
 $X_1, \ldots, X_n \stackrel{i . i . d .}{\sim}$ Poiss $(\lambda)$ for some unknown $\lambda>0$;
 $$
