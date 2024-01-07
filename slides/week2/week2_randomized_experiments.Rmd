@@ -201,21 +201,6 @@ class: title-slide
 
 ---
 
-# Natural experiments
-
-  - The term "natural experiment" gets used a lot in the social sciences.
-    - Often used to lend *additional* credibility to a particular observational empirical design.
---
-  - What constitutes a .maroon[natural experiment]? Titiunik (2020) argues for three factors
-    - Probability of treatment assignment is **not** directly controlled by the researcher.
-    - Probability of treatment assignment is **unknown** to the researcher.
-    - Probability of treatment assignment is **probabilistic** due to some external event that is outside of subjects' control.
---
-  - The credibility of a natural experiment depends on how much we believe that "external event" is unrelated to subjects' potential outcomes.
-    - Essentially, another way of trying to justify $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D_i$
-    
----
-
 # Types of experiments
 
   - Lots of ways in which we could design a randomized experiment where ignorability holds:
@@ -344,7 +329,6 @@ for(i in 1:nIter){
 ```{r, echo=F, fig.width=10, fig.height=8, fig.align='center'}
 hist(sate_est, xlab="Estimated SATE", main="")
 abline(v=5, lty=2, col="red")
-
 ```
 
 ---
@@ -523,7 +507,8 @@ ate_est_neighbors = mean(data_hh$voted[data_hh$treatment == 3]) -
 
 ate_est_neighbors
 ```
-- Now let's use our Neyman variance
+
+- Now let's use our Neyman variance estimator
 
 ```{r, message=F, warning=F}
 # Estimate the sampling variance
