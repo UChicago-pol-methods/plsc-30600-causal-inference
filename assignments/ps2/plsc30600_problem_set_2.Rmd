@@ -1,7 +1,7 @@
 ---
 title: 'PLSC 30600: Problem Set 2'
 author: '[YOUR NAME]'
-date: "January 17, 2023"
+date: "January 17, 2024"
 output:
   pdf_document: default
   html_document:
@@ -20,7 +20,7 @@ library(haven)
 
 >This problem set is due at **11:59 pm on Tuesday, January 30th**.
 
->Please upload your solutions as a .pdf file saved as "Yourlastname_Yourfirstinitial_pset2.pdf"). In addition, an electronic copy of your .Rmd file (saved as "Yourlastname_Yourfirstinitial_pset2.Rmd") must be submitted to the course website at the same time. We should be able to run your code without error messages. In addition to your solutions, please submit an annotated version of this `.rmd` file saved as "Yourlastname_Yourfirstinitial_pset2_feedback.rmd", noting the problems where you needed to consult the solutions and why along with any remaining questions or concerns about the material. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted.
+>Please upload your solutions as a .pdf file saved as "Yourlastname_Yourfirstinitial_pset2.pdf"). In addition, an electronic copy of your .Rmd file (saved as "Yourlastname_Yourfirstinitial_pset2.Rmd") must be submitted to the course website at the same time. We should be able to run your code without error messages. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted.
 
 # Problem 1
 
