@@ -136,7 +136,7 @@ We observe an outcome $Y_i$ for each observation. Let $\bar{Y}_g$ denote the ave
 
 Consider finite-sample inference for the SATE $\tau$ (conditioning on the in-sample potential outcomes).
 
-$$\tau = \sum_{i=1}^N Y_i(1) - Y_i(0)$$
+$$\tau = \frac{1}{N}\sum_{i=1}^N Y_i(1) - Y_i(0)$$
 
 ## Part A
 
@@ -150,5 +150,6 @@ Show that unless $N_g$ is the same for all $g$, $\hat{\tau}$ is biased for the S
 
 Consider the following weighted estimator where $w_g$ is a known constant weight for each group.
 
-$$\hat{\tau}_{w}  = \frac{1}{G_t} \sum_{g = 1}^G w_g \bar{Y}_g \bar{D}_g -  \frac{1}{G_c} \sum_{g = 1}^G w_g\bar{Y}_g(1 - \bar{D}_g)$$$
+$$\hat{\tau}_{w}  = \frac{1}{G_t} \sum_{g = 1}^G w_g \bar{Y}_g \bar{D}_g -  \frac{1}{G_c} \sum_{g = 1}^G w_g\bar{Y}_g(1 - \bar{D}_g)$$
+
 Using your result from Part A, find an expression for $w_g$ such that $\hat{\tau}_{w}$ is unbiased for the SATE. Interpret the weights substantively - what do they represent?
