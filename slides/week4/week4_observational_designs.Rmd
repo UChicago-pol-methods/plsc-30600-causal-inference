@@ -53,7 +53,9 @@ $$
 library(tidyverse)
 library(haven)
 library(estimatr)
+options(digits=3)
 ```
+
   - A good causal observational study should try to mimic the features of an experiment
   - So what were the nice properties of a **randomized experiment**?
     - **Positivity**: Assignment not deterministic $0 < P(D_i = 1) < 1$
@@ -193,7 +195,7 @@ $$\hat{\tau(x)} = \widehat{E}[Y_i | D_i = 1, X_i = x] - \widehat{E}[Y_i | D_i = 
 
 ```{r}
 washington <- read_dta("assets/washington.dta")
-lm_robust(aauw ~ I(ngirls > 0), data=washington)
+lm_robust(aauw ~ anygirls, data=washington)
 ```
 
 ---
@@ -225,21 +227,64 @@ lm_robust(aauw ~ totchi, data=washington)
 --
   - Other strata are just very sparse (4+ children).
     - Let's estimate the "any child" effect for legislators with 1 to 3 children, stratifying on the total amount.
-    - Note that we've changed the target population here as well as introduced a confounder.
+    - Note that we've changed the target population here.
     
 ---
 
 # Example: Washington (2008)
 
 ```{r}
+# Subset down to cases with overlap
+wash_subset <- washington %>% filter(totchi>0&totchi<4)
+
 # Unadjusted
-washington_unadjusted <- lm_robust(aauw ~ I(ngirls > 0), data=washington %>% filter(totchi>0&totchi<4))
-tidy(washington_unadjusted) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
+washington_unadjusted <- lm_robust(aauw ~ anygirls, data=wash_subset)
+tidy(washington_unadjusted) %>% filter(term == "anygirls") %>% 
+  select(term, estimate, std.error, p.value)
+```
 
+---
+
+
+# Example: Washington (2008)
+
+```{r}
+# Get the difference-in-means in each stratum
+stratum_ate <- wash_subset %>% group_by(totchi) %>% 
+  do(tidy(lm_robust(aauw ~ anygirls, data=.))) %>%
+  select(totchi, term, estimate, std.error, df) %>% 
+  filter(term == "anygirls") %>% mutate(n=df+2) %>%
+  ungroup()
+stratum_ate
+```
+
+---
+
+
+# Example: Washington (2008)
+
+```{r}
+# Weighted average to get the point estimate
+stratum_ate %>% summarize(ate = sum(estimate*n/sum(n)),
+                          std.err = sqrt(sum(std.error^2*(n/sum(n))^2))) %>%
+  mutate(p.val = 2*(pnorm(-abs(ate/std.err))))
+```
+
+---
+
+# Example: Washington (2008)
+
+- The **Lin (2013)** estimator with de-meaned dummy variables for each stratum indicator interacted with treatment is also equivalent to the stratification estimator
+  
+```{r}
+wash_subset <- wash_subset %>% mutate(totchi1 = as.numeric(totchi==1),
+                                      totchi2 = as.numeric(totchi==2),
+                                      totchi3 = as.numeric(totchi==3))
 # Adjusted
-washington_strat <- lm_lin(aauw ~ I(ngirls > 0), covariates = ~ as.factor(totchi), data=washington %>% filter(totchi>0&totchi<4))
-tidy(washington_strat) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
-
+washington_strat <- lm_robust(aauw ~ anygirls*I(totchi2 - mean(totchi2)) +
+                              anygirls*I(totchi3 - mean(totchi3)), wash_subset)
+tidy(washington_strat) %>% filter(term == "anygirls") %>% 
+  select(term, estimate, std.error, p.value)
 ```
 
 ---
@@ -253,9 +298,11 @@ tidy(washington_strat) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, 
 
 ```{r}
 # Adjusted + Party
-washington_strat <- lm_lin(aauw ~ I(ngirls > 0), covariates = ~ as.factor(totchi)*as.factor(repub), data=washington %>% filter(totchi>0&totchi<4))
-tidy(washington_strat) %>% filter(term == "I(ngirls > 0)TRUE") %>% select(term, estimate, std.error, p.value)
-
+washington_strat <- lm_lin(aauw ~ anygirls, 
+                           covariates = ~ as.factor(totchi)*as.factor(repub), 
+                           data=wash_subset)
+tidy(washington_strat) %>% filter(term == "anygirls") %>% 
+  select(term, estimate, std.error, p.value)
 ```
 
 ---
@@ -278,7 +325,7 @@ $$\underbrace{E[Y_i | D_i = 1] - E[Y_i | D_i = 0]}_{\text{Difference-in-means}} 
 
 # Omitted Variable Bias
 
-- Let's write the selection bias conditioning on $U_i$
+- Let's write the selection-into-treatment bias conditioning on $U_i$
 
 $$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0) | D_i = 1, U_i = u] Pr(U_i = u | D_i = 1) - \sum_{u \in \mathcal{U}} E[Y_i(0) | D_i = 0, U_i = u] Pr(U_i = u | D_i = 0)$$
 
@@ -317,18 +364,6 @@ $$\text{Selection Bias} = \sum_{u \in \mathcal{U}} E[Y_i(0)] \times \bigg(Pr(U_i
   2. $U_i$ is not independent of the potential outcomes
 
 ---
-
-# Signing the bias
-
-- Additionally, the bias is multiplicative. 
-- Under some constant effects assumptions, we can get the direction of the bias of the difference-in-means relative to the ATT
-  1. .blue[**Positive**] association between the confounder on outcome. .blue[**Positive**] association between confounder and treatment. .blue[**Positive**] bias.
-  2. .blue[**Positive**] association between the confounder on outcome. .red[**Negative**] association between confounder and treatment. .red[**Negative**] bias.
-  3. .red[**Negative**] association between the confounder on outcome. .blue[**Positive**] association between confounder and treatment. .red[**Negative**] bias.
-  4. .red[**Negative**] association between the confounder on outcome. .red[**Negative**] association between confounder and treatment. .blue[**Positive**] bias.
-    
----
-
 
 # Example: Smoking and Cancer
 
@@ -427,31 +462,6 @@ $$E\left[\frac{D_i Y_i}{e(X_i)}\right] = E[Y_i(1)]$$
 
 ---
 
-
-# Estimating the propensity score
-
-- Outside of an experiment, we don't actually know the propensity score
-  - Even if we knew the propensity score, we get more efficient estimators by adjusting for the estimated propensity score (Hirano, Imbens and Ridder, 2003)
-- How do we estimate it? 
---
-
-- When we can't just stratify, we'll often assume a parametric *model* for $P(D_i = 1 | X)$.    
-  - We could potentially just use OLS, but we need a model to make *predictions* of the propensity score. OLS w/ a binary outcome may give predictions above $1$ or below $0$ (especially when the model is not fully saturated)
---
-
-- One common generalized linear model is the **logit**, which assumes that the log-odds of the propensity score is a linear function of the parameters 
-
-$$\text{log}\bigg(\frac{e(x)}{1-e(x)}\bigg) = \beta_0 + \beta_1x_1 + \beta_2x_2 + \beta_3x_3 + \dotsc$$
-
-- Estimate the parameters ( $\hat{\beta}$ ) via maximum likelihood and obtain a predicted probability for each observation $\widehat{e(X_i)}$
-
---
-- **Warning**: Model misspecification for the propensity score can really ruin the performance of propensity score estimators (Kang and Schafer, 2007)
-  - But how do we know if we got the model right?
-  - More "robust" methods for estimating a balancing score aim at getting **exact** balance on the covariates (CBPS: Imai and Ratkovic, 2013)
-
----
-
 # Normalizing the propensity score
 
 - Horvitz-Thompson behaves especially poorly when propensity scores are close to $0$ and $1$ 
@@ -503,7 +513,7 @@ $$\hat{\tau} = \frac{1}{\sum_{i=1}^n \frac{D_i}{\widehat{e(X_i)}}} \sum_{i=1}^n\
   4. Repeat for many iterations.
 --
 
-- At the end, we have a bunch of draws that allow us to approximate the sampling distribution of $\hat{\tau}$. We can compute the standard deviation to get our estimate of the standard error of $\hat{\tau}$ and create confidence intervals under large-sample theory (normality). Alternatively, we can use percentiles of the bootstrap distribution to construct our confidence intervals.
+- At the end, we have a bunch of draws that allow us to approximate the sampling distribution of $\hat{\tau}$.
 
 
 ---
@@ -513,24 +523,17 @@ $$\hat{\tau} = \frac{1}{\sum_{i=1}^n \frac{D_i}{\widehat{e(X_i)}}} \sum_{i=1}^n\
 - Let's suppose we want to adjust for total number of children and party in the Washington (2008) study using IPTW.
 
 ```{r}
-# Subset to totchi > 0 and totchi < 4
-wash_subset <- washington %>% filter(totchi>0&totchi<4)
-
-# Fit a propensity score model
-pscore_model <- glm(anygirls ~ as.factor(totchi) + as.factor(party) + 
-                as.factor(totchi)*as.factor(party), data=wash_subset,
-              family=binomial(link="logit"))
+# Fit a propensity score model (here, lm() works because of full saturation)
+pscore_model <- lm(anygirls ~ as.factor(totchi) + as.factor(party) + 
+                as.factor(totchi)*as.factor(party), data=wash_subset)
 
 # Predict the propensity score
 wash_subset$e <- predict(pscore_model, type="response")
 
 # Generate the weights
-wash_subset$iptw_weight <-1/wash_subset$e
+wash_subset$iptw_weight <- 1/wash_subset$e
 wash_subset$iptw_weight[wash_subset$anygirls == 0] <- 1/(1-wash_subset$e[wash_subset$anygirls == 0])
-
-
 ```
-
 
 
 ---
@@ -579,9 +582,8 @@ boot_iptw <- rep(NA,nIter)
 for (i in 1:nIter){
   wash_subset_boot <- wash_subset[sample(1:nrow(wash_subset), size = nrow(wash_subset), replace=T),]
    # Fit a propensity score model
-  pscore_model_boot <- glm(anygirls ~ as.factor(totchi) + as.factor(party) + 
-                  as.factor(totchi)*as.factor(party), data=wash_subset_boot,
-                family=binomial(link="logit"))
+  pscore_model_boot <- lm(anygirls ~ as.factor(totchi) + as.factor(party) + 
+                as.factor(totchi)*as.factor(party), data=wash_subset_boot)
   
   # Predict the propensity score
   wash_subset_boot$e_boot <- predict(pscore_model_boot, type="response")
@@ -858,6 +860,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 - The graph lets us read conditional probabilities on the observed quantities $P(Y | D, X)$.
 - However, we don't just want $P(Y |D)$, we want a *counterfactual*. Within Pearl's graph framework, an intervention is represented by the "do" operator applied to a node.
   - $\text{do}(X = x)$ denotes an intervention that sets $X$ to a particular level $x$
+  - Represented in a **counterfactual graph** that removes all arrows into $D$.
 --
 
 - We want to learn about the post-intervention distribution $P(Y | \text{do}(X = x))$, but we only have the observed distribution/DAG.
@@ -871,28 +874,26 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
   
 ---
 
-# Backdoor adjustment
+# Adjustment criterion
 
 - If we condition on covariates $X$ can we non-parametrically identify the effect of $D$ on $Y$?
-  - Yes, if we block all **backdoor paths** from $Y$ to $D$.
+  - Yes, if we block all **non-causal paths** from $Y$ to $D$.
 --
 
-- Backdoor paths are all paths between $Y$ and $D$ that contain an arrow into $D$
-  - By definition these are **non-causal** paths (somewhere there is a fork or collider)
-  - **Intuition** - we want to keep any *causal* sources of dependency between $D$ and $Y$ and get rid of any non-causal dependencies (while avoiding *creating* new dependencies).
+- **Adjustment criterion** *(Shpitser, VanderWeele, and Robins, 2012)*
+  - All non-causal paths from $D$ to $Y$ are blocked by the set $X$
+  - No element in $X$ is a node or a descendant of a node on a causal path from $D$ to $Y$.
 --
 
-- **Backdoor criterion**
-  1. No nodes in $X$ are descendents of $D$
-  2. $D$ and $Y$ are $d$-separated by $X$ in the graph with all arrows out of $D$ removed (i.e. the graph w/ only backdoor paths between $D$ and $Y$)
+- Intuition:
+  - Block non-causal paths from $Y$ to $D$
+  - Don't **open up** non-causal paths from $Y$ to $D$
+  - Don't control for variables along the causal path from $D$ to $Y$.
 --
 
-- The second criterion is analogous to our key selection-on-observables identifying assumption: $\{Y_i(1), Y_i(0)\} {\perp \! \! \! \perp} D | X$ 
-  - Richardson and Robins (2013) make this connection explicit with SWIGs.
---
-
-- Estimation via standard selection-on-observables techniques (sub-classification, weighting, matching, regression) conditional on $X$.
-  - What the DAG helps clarify is *which* variables belong in $X$
+- If the adjustment criterion holds then, the observed distributions identify the counterfactual distribution
+  - $P(Y | \text{do}(d)) = \sum_{z} P(Y | d, z) P(z)$
+  - **Conditional ignorability!**
 
 ---
 
@@ -911,7 +912,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 \end{tikzpicture}
 ```
 
-- One backdoor path from $D$ to $Y$: $D \leftarrow X \rightarrow Y$.
+- One non-causal path from $D$ to $Y$: $D \leftarrow X \rightarrow Y$.
 - Conditioning on $X$ blocks that path
 
 ---
@@ -933,7 +934,7 @@ $$P(X_1, X_2, \dotsc, X_K) = \prod_{k=1}^K P(X_K | \text{parents}(X_K))$$
 \end{tikzpicture}
 ```
 
-- No backdoor paths between $D$ and $Y$ w/o conditioning
+- No non-causal paths between $D$ and $Y$ w/o conditioning
 - But conditioning on $M$ opens up a non-causal path between $D$ and $Y$
   - $D \rightarrow Z \leftarrow U \rightarrow Y$
 
