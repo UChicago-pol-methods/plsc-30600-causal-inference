@@ -1,0 +1,227 @@
+---
+title: "PLSC 30600 Lab 4"
+pdf-engine: xelatex
+format:
+  html:
+    toc: false
+    number-sections: false
+    colorlinks: true
+mainfont: XCharter
+monofont: Fira Sans
+author: "Zikai Li"
+date: last-modified
+linestretch: 1.5
+header-includes:
+  - "\\usepackage{amsmath}"
+  - "\\usepackage{tikz}"
+  - "\\usepackage{amssymb}"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(estimatr)
+library(cobalt)
+```
+
+```{r}
+# Simulate data
+set.seed(60637)
+n <- 1000 # number of subjects
+X1 <- rbinom(n, 1, 0.5) # binary covariate
+X2 <- rbinom(n, 1, 0.2) # binary covariate
+T <- rbinom(n, 1, 0.3 + 0.2 * X1 + 0.45 * X2 ) # treatment assignment with imbalance
+
+# outcomes depend on both treatment and covariates
+Y <- rnorm(n, mean = T * 2+0.2*X1+0.8*X2) 
+
+# Calculate propensity scores
+data = tibble(T, X1, X2)
+
+ps_model <- lm_robust(T ~ X1*X2, data = data)
+data$ps <- predict(ps_model, newdata = data)
+
+
+# Let's see the histogram of the propensity scores among treated and control
+data %>% ggplot(aes(x=ps)) + 
+  geom_histogram(bins=30) + 
+  facet_wrap(~T) + 
+  xlab("Estimated propensity score") + 
+  theme_bw()
+```
+
+```{r}
+# Apply IPW
+data$weights <- ifelse(T == 1, 1/data$ps, 1/(1-data$ps))
+
+# Assess balance
+
+bal_table_unwtd <- bal.tab(T ~ X1 + X2, data = data, binary = "std", s.d.denom="pooled",
+                     )
+print(bal_table_unwtd)
+
+```
+
+```{r}
+bal_table_wtd <- bal.tab(T ~ X1 + X2, data = data, binary = "std", weights = data$weights, 
+                     method = "weighting")
+print(bal_table_wtd)
+```
+
+```{r}
+
+# A mega useful visualization tool to compare unadjusted vs. adjusted 
+# is the "love" plot (named after biostatistician Thomas Love)
+iptw_love_plot <- love.plot(data %>% select(X1, X2), treat=data$T, s.d.denom="pooled", abs=TRUE, 
+                            binary = "std", weights=data$weights, thresholds= c(m=.1))
+iptw_love_plot
+```
+
+
+```{r}
+# Generate a point estimate
+iptw_est <- lm_robust(Y ~ T, data=data, weights=weights)
+point_wtd <- coef(iptw_est)[2]
+point_wtd
+```
+
+
+# Bootstrapping
+
+Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations *with replacement* from the sample and computes an estimate for each resample.
+
+```{r}
+set.seed(60637)
+nBoot <- 1000 # Number of iterations
+ate_boot <- rep(NA, nBoot) # Placeholder to store estimates
+
+# For each iteration
+for(boot in 1:nBoot){
+  
+  # Resample rows with replacement
+  data_boot <- data[sample(1:nrow(data), nrow(data), replace=TRUE),] #replace = T is key!
+  
+  # Fit the propensity score model on the bootstrapped data
+  pscore_model <- lm_robust(T ~ X1*X2, 
+                      data=data_boot)
+
+  # Get the propensity scores for each observation
+  data_boot$ps <- predict(pscore_model, newdata = data_boot) 
+  
+  # data_boot$ps  <- ifelse(data_boot$ps > 0.999, 0.999, data_boot$ps)
+  #   data_boot$ps  <- ifelse(data_boot$ps > 0.001, 0.001, data_boot$ps)
+  # Calculate the weights
+  data_boot$wt_boot <- NA
+  data_boot$wt_boot <- ifelse(T == 1, 1/data_boot$ps, 1/(1-data_boot$ps))
+  
+  # weighted difference-in-means
+  boot_reg <- lm_robust(Y ~ T, data=data_boot, weights=data_boot$wt_boot)
+  
+  # Store the weighted difference-in-means
+  ate_boot[boot] <- coef(boot_reg)[2]
+  
+}
+
+# Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference
+sd(ate_boot)
+
+# Asymptotic 95\% CI
+c(point_wtd - qnorm(.975)*sd(ate_boot), 
+  point_wtd + qnorm(.975)*sd(ate_boot))
+
+```
+
+What if we do not observe one of the covariates?
+
+
+```{r}
+ps_model <- lm_robust(T ~ X1, data = data)
+data$ps <- predict(ps_model, newdata = data)
+
+
+# Let's see the histogram of the propensity scores among treated and control
+data %>% ggplot(aes(x=ps)) + 
+  geom_histogram(bins=30) + 
+  facet_wrap(~T) + 
+  xlab("Estimated propensity score") + 
+  theme_bw()
+```
+
+```{r}
+# Apply IPW
+data$weights <- ifelse(T == 1, 1/data$ps, 1/(1-data$ps))
+
+# Assess balance
+
+bal_table_unwtd <- bal.tab(T ~ X1, data = data, binary = "std", s.d.denom="pooled",
+                     )
+print(bal_table_unwtd)
+
+```
+
+```{r}
+bal_table_wtd <- bal.tab(T ~ X1, data = data, binary = "std", weights = data$weights, 
+                     method = "weighting")
+print(bal_table_wtd)
+```
+
+```{r}
+
+# A mega useful visualization tool to compare unadjusted vs. adjusted 
+# is the "love" plot (named after biostatistician Thomas Love)
+iptw_love_plot <- love.plot(data %>% select(X1), treat=data$T, s.d.denom="pooled", abs=TRUE, 
+                            binary = "std", weights=data$weights, thresholds= c(m=.1))
+iptw_love_plot
+```
+
+
+```{r}
+# Generate a point estimate
+iptw_est <- lm_robust(Y ~ T, data=data, weights=weights)
+point_wtd <- coef(iptw_est)[2]
+point_wtd
+```
+
+# Bootstrapping
+
+Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations *with replacement* from the sample and computes an estimate for each resample.
+
+```{r}
+set.seed(60637)
+nBoot <- 1000 # Number of iterations
+ate_boot <- rep(NA, nBoot) # Placeholder to store estimates
+
+# For each iteration
+for(boot in 1:nBoot){
+  
+  # Resample rows with replacement
+  data_boot <- data[sample(1:nrow(data), nrow(data), replace=TRUE),] #replace = T is key!
+  
+  # Fit the propensity score model on the bootstrapped data
+  pscore_model <- lm_robust(T ~ X1, 
+                      data=data_boot)
+
+  # Get the propensity scores for each observation
+  data_boot$ps <- predict(pscore_model, newdata = data_boot) 
+  # data_boot$ps  <- ifelse(data_boot$ps > 0.999, 0.999, data_boot$ps)
+  #   data_boot$ps  <- ifelse(data_boot$ps > 0.001, 0.001, data_boot$ps)
+  # Calculate the weights
+  data_boot$wt_boot <- NA
+  data_boot$wt_boot <- ifelse(T == 1, 1/data_boot$ps, 1/(1-data_boot$ps))
+  
+  # weighted difference-in-means
+  boot_reg <- lm_robust(Y ~ T, data=data_boot, weights=wt_boot)
+  
+  # Store the weighted difference-in-means
+  ate_boot[boot] <- coef(boot_reg)[2]
+  
+}
+
+# Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference
+sd(ate_boot)
+
+# Asymptotic 95\% CI
+c(point_wtd - qnorm(.975)*sd(ate_boot), 
+  point_wtd + qnorm(.975)*sd(ate_boot))
+
+```
