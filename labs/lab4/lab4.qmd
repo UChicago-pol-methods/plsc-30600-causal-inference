@@ -10,6 +10,7 @@ mainfont: XCharter
 monofont: Fira Sans
 author: "Zikai Li"
 date: last-modified
+cache: true
 linestretch: 1.5
 header-includes:
   - "\\usepackage{amsmath}"
@@ -24,6 +25,15 @@ library(estimatr)
 library(cobalt)
 ```
 
+We simulate a dataset with $n = 1000$ subjects. 
+
+  - Two binary covariates: $X_1$ and $X_2$. 
+
+  - A binary treatment variable $T$ that follows a Bernoulli distribution with probability $0.3 + 0.2 \times X_1 + 0.45 \times X_2$. This introduces an imbalance in the treatment assignment, as the probability of receiving the treatment depends on the covariates.
+
+  - an outcome variable $Y$ is generated for each subject, following a normal distribution with mean $T \times 2 + 0.2 \times X1 + 0.8 \times X2$. This means the outcome depends on both the treatment and the covariates.
+
+
 ```{r}
 # Simulate data
 set.seed(60637)
@@ -35,9 +45,19 @@ T <- rbinom(n, 1, 0.3 + 0.2 * X1 + 0.45 * X2 ) # treatment assignment with imbal
 # outcomes depend on both treatment and covariates
 Y <- rnorm(n, mean = T * 2+0.2*X1+0.8*X2) 
 
-# Calculate propensity scores
-data = tibble(T, X1, X2)
+data = tibble(Y, T, X1, X2)
+```
 
+Naive estimate of the treatment effect without adjustment:
+
+```{r noadjust}
+lm_robust(Y ~ T, data=data)
+```
+
+We can see that the CI does not cover the true average treatment effect of 2.
+
+# Propensity score estimation
+```{r}
 ps_model <- lm_robust(T ~ X1*X2, data = data)
 data$ps <- predict(ps_model, newdata = data)
 
@@ -49,6 +69,8 @@ data %>% ggplot(aes(x=ps)) +
   xlab("Estimated propensity score") + 
   theme_bw()
 ```
+
+Propensity score weighting
 
 ```{r}
 # Apply IPW
@@ -68,6 +90,8 @@ bal_table_wtd <- bal.tab(T ~ X1 + X2, data = data, binary = "std", weights = dat
 print(bal_table_wtd)
 ```
 
+Then, we can see that the balance is improved after weighting.
+
 ```{r}
 
 # A mega useful visualization tool to compare unadjusted vs. adjusted 
@@ -77,6 +101,7 @@ iptw_love_plot <- love.plot(data %>% select(X1, X2), treat=data$T, s.d.denom="po
 iptw_love_plot
 ```
 
+Next, we estimate the treatment effect using IPW.
 
 ```{r}
 # Generate a point estimate
@@ -85,6 +110,7 @@ point_wtd <- coef(iptw_est)[2]
 point_wtd
 ```
 
+How do we get the standard error? We can use the bootstrap.
 
 # Bootstrapping
 
@@ -131,8 +157,10 @@ c(point_wtd - qnorm(.975)*sd(ate_boot),
 
 ```
 
-What if we do not observe one of the covariates?
 
+When estimating the propensity score, what if we do not observe one of the covariates? Let's find out. 
+
+Suppose we do not observe $X_2$.
 
 ```{r}
 ps_model <- lm_robust(T ~ X1, data = data)
@@ -174,6 +202,9 @@ iptw_love_plot <- love.plot(data %>% select(X1), treat=data$T, s.d.denom="pooled
 iptw_love_plot
 ```
 
+We can see that the balance is still ostensibly "perfect" after weighting.
+
+What about the treatment effect estimate?
 
 ```{r}
 # Generate a point estimate
@@ -182,9 +213,7 @@ point_wtd <- coef(iptw_est)[2]
 point_wtd
 ```
 
-# Bootstrapping
-
-Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations *with replacement* from the sample and computes an estimate for each resample.
+It seems biased. Let's see if the bootstraped CI covers the true ATE.
 
 ```{r}
 set.seed(60637)
@@ -225,3 +254,5 @@ c(point_wtd - qnorm(.975)*sd(ate_boot),
   point_wtd + qnorm(.975)*sd(ate_boot))
 
 ```
+
+It doesn't.
