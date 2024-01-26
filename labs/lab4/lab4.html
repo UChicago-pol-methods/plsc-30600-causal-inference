@@ -119,7 +119,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>A binary treatment variable <span class="math inline">\(T\)</span> that follows a Bernoulli distribution with probability <span class="math inline">\(0.3 + 0.2 \times X_1 + 0.45 \times X_2\)</span>. This introduces an imbalance in the treatment assignment, as the probability of receiving the treatment depends on the covariates.</p></li>
 <li><p>an outcome variable <span class="math inline">\(Y\)</span> is generated for each subject, following a normal distribution with mean <span class="math inline">\(T \times 2 + 0.2 \times X1 + 0.8 \times X2\)</span>. This means the outcome depends on both the treatment and the covariates.</p></li>
 </ul>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-1_d35d6b6b60d49f97085039e570a02dbc">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate data</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">60637</span>)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="co"># number of subjects</span></span>
@@ -133,21 +133,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> <span class="fu">tibble</span>(Y, T, X1, X2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Naive estimate of the treatment effect without adjustment:</p>
-<div class="cell" data-hash="lab4_cache/html/noadjust_a181af2835345422e45ee065458c8956">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lm_robust</span>(Y <span class="sc">~</span> T, <span class="at">data=</span>data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>estimatr<span class="sc">::</span><span class="fu">tidy</span>(<span class="fu">lm_robust</span>(Y <span class="sc">~</span> T, <span class="at">data=</span>data))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>             Estimate Std. Error   t value      Pr(&gt;|t|)  CI Lower  CI Upper
-(Intercept) 0.1002126 0.04493901  2.229969  2.597129e-02 0.0120268 0.1883984
-T           2.3539668 0.06603874 35.645241 3.735406e-180 2.2243761 2.4835575
-             DF
-(Intercept) 998
-T           998</code></pre>
+<pre><code>         term estimate std.error statistic   p.value conf.low conf.high  df
+1 (Intercept)     0.10    0.0449      2.23  2.60e-02    0.012     0.188 998
+2           T     2.35    0.0660     35.65 3.74e-180    2.224     2.484 998
+  outcome
+1       Y
+2       Y</code></pre>
 </div>
 </div>
 <p>We can see that the CI does not cover the true average treatment effect of 2.</p>
 <section id="propensity-score-estimation" class="level1">
 <h1>Propensity score estimation</h1>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-2_0b90249f9b237941c108f928d11c0c79">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ps_model <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(T <span class="sc">~</span> X1<span class="sc">*</span>X2, <span class="at">data =</span> data)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>ps <span class="ot">&lt;-</span> <span class="fu">predict</span>(ps_model, <span class="at">newdata =</span> data)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -163,7 +163,7 @@ T           998</code></pre>
 </div>
 </div>
 <p>Propensity score weighting</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-3_9d44d5ffe262b68d7af24c1157a8cf3b">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply IPW</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>weights <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(T <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>data<span class="sc">$</span>ps, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>ps))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -175,15 +175,15 @@ T           998</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Balance Measures
      Type Diff.Un
-X1 Binary  0.4040
-X2 Binary  0.7786
+X1 Binary   0.404
+X2 Binary   0.779
 
 Sample sizes
     Control Treated
 All     498     502</code></pre>
 </div>
 </div>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-4_cc782f764a6dfaba9ff1cfe97846b1fb">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>bal_table_wtd <span class="ot">&lt;-</span> <span class="fu">bal.tab</span>(T <span class="sc">~</span> X1 <span class="sc">+</span> X2, <span class="at">data =</span> data, <span class="at">binary =</span> <span class="st">"std"</span>, <span class="at">weights =</span> data<span class="sc">$</span>weights, </span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">method =</span> <span class="st">"weighting"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
@@ -198,12 +198,12 @@ X2 Binary       -0
 
 Effective sample sizes
            Control Treated
-Unadjusted  498.     502. 
-Adjusted    271.32   436.2</code></pre>
+Unadjusted     498     502
+Adjusted       271     436</code></pre>
 </div>
 </div>
 <p>Then, we can see that the balance is improved after weighting.</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-5_d565c4de4fd01e7da40f60f75f4af8af">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A mega useful visualization tool to compare unadjusted vs. adjusted </span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># is the "love" plot (named after biostatistician Thomas Love)</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>iptw_love_plot <span class="ot">&lt;-</span> <span class="fu">love.plot</span>(data <span class="sc">%&gt;%</span> <span class="fu">select</span>(X1, X2), <span class="at">treat=</span>data<span class="sc">$</span>T, <span class="at">s.d.denom=</span><span class="st">"pooled"</span>, <span class="at">abs=</span><span class="cn">TRUE</span>, </span>
@@ -214,14 +214,14 @@ Adjusted    271.32   436.2</code></pre>
 </div>
 </div>
 <p>Next, we estimate the treatment effect using IPW.</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-6_aeaa46c2546a875fda1d5dc1e644e898">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a point estimate</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>iptw_est <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(Y <span class="sc">~</span> T, <span class="at">data=</span>data, <span class="at">weights=</span>weights)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>point_wtd <span class="ot">&lt;-</span> <span class="fu">coef</span>(iptw_est)[<span class="dv">2</span>]</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>point_wtd</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>       T 
-2.089427 </code></pre>
+<pre><code>   T 
+2.09 </code></pre>
 </div>
 </div>
 <p>How do we get the standard error? We can use the bootstrap.</p>
@@ -229,7 +229,7 @@ Adjusted    271.32   436.2</code></pre>
 <section id="bootstrapping" class="level1">
 <h1>Bootstrapping</h1>
 <p>Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations <em>with replacement</em> from the sample and computes an estimate for each resample.</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-7_dc599b65f7d379ed8ea7dd2163380e03">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">60637</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>nBoot <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="co"># Number of iterations</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>ate_boot <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="cn">NA</span>, nBoot) <span class="co"># Placeholder to store estimates</span></span>
@@ -264,19 +264,19 @@ Adjusted    271.32   436.2</code></pre>
 <span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference</span></span>
 <span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a><span class="fu">sd</span>(ate_boot)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.1069011</code></pre>
+<pre><code>[1] 0.107</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Asymptotic 95\% CI</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(point_wtd <span class="sc">-</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(ate_boot), </span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  point_wtd <span class="sc">+</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(ate_boot))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>       T        T 
-1.879904 2.298949 </code></pre>
+<pre><code>   T    T 
+1.88 2.30 </code></pre>
 </div>
 </div>
 <p>When estimating the propensity score, what if we do not observe one of the covariates? Let’s find out.</p>
 <p>Suppose we do not observe <span class="math inline">\(X_2\)</span>.</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-8_be452f9298aa055bc842df59a5867c5f">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ps_model <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(T <span class="sc">~</span> X1, <span class="at">data =</span> data)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>ps <span class="ot">&lt;-</span> <span class="fu">predict</span>(ps_model, <span class="at">newdata =</span> data)</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -291,7 +291,7 @@ Adjusted    271.32   436.2</code></pre>
 <p><img src="lab4_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-9_a4cd6cf67338a668d7da16ed553bae84">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply IPW</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>weights <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(T <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>data<span class="sc">$</span>ps, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>ps))</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -310,7 +310,7 @@ Sample sizes
 All     498     502</code></pre>
 </div>
 </div>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-10_acda1e902a0f4d33ec7b55ff1e3d248b">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bal_table_wtd <span class="ot">&lt;-</span> <span class="fu">bal.tab</span>(T <span class="sc">~</span> X1, <span class="at">data =</span> data, <span class="at">binary =</span> <span class="st">"std"</span>, <span class="at">weights =</span> data<span class="sc">$</span>weights, </span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">method =</span> <span class="st">"weighting"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
@@ -324,11 +324,11 @@ X1 Binary       -0
 
 Effective sample sizes
            Control Treated
-Unadjusted  498.    502.  
-Adjusted    478.34  482.46</code></pre>
+Unadjusted     498     502
+Adjusted       478     482</code></pre>
 </div>
 </div>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-11_5312850c1bd7182725372f9377197276">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A mega useful visualization tool to compare unadjusted vs. adjusted </span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co"># is the "love" plot (named after biostatistician Thomas Love)</span></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>iptw_love_plot <span class="ot">&lt;-</span> <span class="fu">love.plot</span>(data <span class="sc">%&gt;%</span> <span class="fu">select</span>(X1), <span class="at">treat=</span>data<span class="sc">$</span>T, <span class="at">s.d.denom=</span><span class="st">"pooled"</span>, <span class="at">abs=</span><span class="cn">TRUE</span>, </span>
@@ -340,18 +340,18 @@ Adjusted    478.34  482.46</code></pre>
 </div>
 <p>We can see that the balance is still ostensibly “perfect” after weighting.</p>
 <p>What about the treatment effect estimate?</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-12_70fdafbb02e06ceadb293abea59dd387">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a point estimate</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>iptw_est <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(Y <span class="sc">~</span> T, <span class="at">data=</span>data, <span class="at">weights=</span>weights)</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>point_wtd <span class="ot">&lt;-</span> <span class="fu">coef</span>(iptw_est)[<span class="dv">2</span>]</span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>point_wtd</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>       T 
-2.332916 </code></pre>
+<pre><code>   T 
+2.33 </code></pre>
 </div>
 </div>
 <p>It seems biased. Let’s see if the bootstraped CI covers the true ATE.</p>
-<div class="cell" data-hash="lab4_cache/html/unnamed-chunk-13_2b76c59a95f7b107fee941a9346b5e1d">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">60637</span>)</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>nBoot <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="co"># Number of iterations</span></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>ate_boot <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="cn">NA</span>, nBoot) <span class="co"># Placeholder to store estimates</span></span>
@@ -385,14 +385,14 @@ Adjusted    478.34  482.46</code></pre>
 <span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference</span></span>
 <span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a><span class="fu">sd</span>(ate_boot)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.06862178</code></pre>
+<pre><code>[1] 0.0686</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Asymptotic 95\% CI</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(point_wtd <span class="sc">-</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(ate_boot), </span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  point_wtd <span class="sc">+</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(ate_boot))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>       T        T 
-2.198420 2.467412 </code></pre>
+<pre><code>   T    T 
+2.20 2.47 </code></pre>
 </div>
 </div>
 <p>It doesn’t.</p>

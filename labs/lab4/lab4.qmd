@@ -10,7 +10,7 @@ mainfont: XCharter
 monofont: Fira Sans
 author: "Zikai Li"
 date: last-modified
-cache: true
+cache: false
 linestretch: 1.5
 header-includes:
   - "\\usepackage{amsmath}"
@@ -20,6 +20,7 @@ header-includes:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+options(digits = 3)
 library(tidyverse)
 library(estimatr)
 library(cobalt)
@@ -51,7 +52,7 @@ data = tibble(Y, T, X1, X2)
 Naive estimate of the treatment effect without adjustment:
 
 ```{r noadjust}
-lm_robust(Y ~ T, data=data)
+estimatr::tidy(lm_robust(Y ~ T, data=data))
 ```
 
 We can see that the CI does not cover the true average treatment effect of 2.
