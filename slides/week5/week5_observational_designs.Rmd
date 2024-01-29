@@ -47,6 +47,7 @@ $$
 ```{r, echo=F}
 options(digits=3)
 ```
+
 ---
 
 # Imputation estimators
@@ -113,11 +114,10 @@ where $S$ is the sample covariance matrix.
 --
 
 - Challenges:
-  - Inference is (slightly) more complicated
   - Possibly greater variance (e.g. only one treated unit is "close" to many controls)
 --
 
-- For the most part, we'll do matching **with** replacement.
+- Here, we'll analyze matching **with** replacement.
 
 ---
 
@@ -163,7 +163,7 @@ $$\hat{\tau^m_{\text{ATT}}} = \frac{1}{N_t}\sum_{i: D_i = 1} Y_i - \widehat{Y_i(
 ## Properties of the simple matching estimator
 
 - Unless matching is exact, Abadie and Imbens (2006) show that matching exhibits a bias.
-$$B_M = \frac{1}{N}\sum_{i=1}^N (2D_i - 1) \bigg[\frac{1}{M} \sum_{m=1}^M (\mu_{1-D_i}(X_i) - \mu_{1-D_i}(X_{\mathcal{J}_m(i)})\bigg]$$
+$$B_M = \frac{1}{N}\sum_{i=1}^N (2D_i - 1) \bigg[\frac{1}{M} \sum_{m=1}^M \mu_{1-D_i}(X_i) - \mu_{1-D_i}(X_{\mathcal{J}_m(i)})\bigg]$$
 
 where $\mu_1(X_i) = E[Y_i(1) | X_i]$ and $\mu_0(X_i) = E[Y_i(0) | X_i]$ are the conditional expectations.
 --
@@ -207,8 +207,8 @@ library(tidyverse)
 library(estimatr)
 library(MASS)
 inv.logit = function(x) 1/(1 + exp(-x))
-
 ```
+
 
 ```{r, echo=F, message=F, warning=F, fig.align="center"}
 set.seed(60637)
@@ -322,6 +322,65 @@ hist(ate_est, main="1-to-3 Matching w/ bias correction", xlab="Estimate", xlim=c
 abline(v=2, col="red", lty=2)
 abline(v=mean(ate_est), col="blue", lty=2)
 ```
+
+---
+
+# Simulation to show the bias
+
+- What if we just had 1 covariate?
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 1
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- coef(lm(Y ~ D, data=dat))[2]
+}
+hist(ate_est, main="Unadjusted", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+
+```
+
+---
+
+# Simulation to show the bias
+
+- Matching bias is a **dimensionality** problem!
+
+```{r, echo=F, message=F, warning=F, fig.align="center"}
+set.seed(60637)
+nIter <- 1000
+ate_est <- rep(NA, nIter)
+for (iter in 1:nIter){
+  N = 100
+  K = 1
+  X = mvrnorm(N, rep(0, K), Sigma=diag(rep(1,K)))
+  colnames(X) <- paste("X",1:K, sep="")
+  coef = 1/c(1:K) 
+  prD = inv.logit(X%*%coef)
+  D = rbinom(N, 1, prD)
+  Y = 2*D + X%*%coef + rnorm(N)
+  colnames(Y) <- "Y"
+  dat <- data.frame(cbind(Y, D, X))
+  ate_est[iter] <- Match(Y = Y, Tr = D, X = X, estimand="ATE", Weight = 2)$est
+}
+hist(ate_est, main="1-to-1 Matching", xlab="Estimate", xlim=c(1, 5))
+abline(v=2, col="red", lty=2)
+abline(v=mean(ate_est), col="blue", lty=2)
+
+```
+
 ---
 
 # Bias-corrected matching
@@ -355,18 +414,26 @@ abline(v=mean(ate_est), col="blue", lty=2)
 - Otsu and Rai (2017) show that a *weighted* bootstrap based on the linearized form of the bias-corrected matching estimator *will* work since it conditions on the number of times a unit is matched
 --
 
-- Alternatively, Abadie and Imbens (2006) derive the asymptotic variance + provide an estimator.
+- Alternatively, Abadie and Imbens (2006) derive the asymptotic variance of the with-replacement nearest neighbor matching estimator + provide an estimator.
   - `Matching` package implements this estimator.
+--
+
+- In the case of post-matching inference when matching **without replacement**, Abadie and Spiess (2020) show that matching induces dependence within matched sets
+  - Solution: Clustered standard errors, clustered on matched set.
 
 ---
 
 
-# Recent matching methods
+# Other matching methods
 
+- *Optimal* matching
+  - Minimize the **total distance** between treated and the set of chosen (matched) control units
+  - Can improve over greedy "nearest-neighbor" matching when matching **without replacement**
+--
 
-- *Optimal* (full) matching
-  - Matching as a form of "sub-classification" - each unit is assigned to a sub-class with at least one treated and one control unit
-  - Sub-classes chosen to minimize within-subclass distances.
+- *Full* matching
+  - Instead of matching 1-to-1 (or 1-to-many), create subclasses with at least 1 treated and control
+  - Minimize the within-subclass distances (optimal matching)
 --
 
 - *Genetic* matching (Diamond and Sekhon, 2013)
@@ -380,77 +447,163 @@ abline(v=mean(ate_est), col="blue", lty=2)
   
 ---
 
-# Example: Keriakes et. al. (2000)
+# Example: Keele et. al. (2017)
 
-- Let's see how matching compares to weighting using the dataset from section on percutaneous coronary interventions.
-  - Our treatment: use of an anti-platelet drug (abciximab)
-  - Our outcome: survival at 6 months
-- Load the data and match on all the covariates w/o bias correction
+- Do minority candidates drive minority voter turnout?
+  - **Keele, Shah, White and Kay (2017, JOP) "Black Candidates and Black Turnout: A Study of Viability in Louisiana Mayoral Elections"**
+  - Examine mayoral elections in Louisiana from 1988 to 2011 and compare differences in Black turnout among elections with a Black candidate and elections without a Black candidate (all-white candidate slate)
+--
 
-```{r, warning=F, message=F}
-library(Matching)
-pci <- read_csv("assets/pci.csv")
+- **Identification challenge**: Black candidates are not randomly assigned to elections!
+  - Strategic entry: Black candidates run in districts with larger Black population shares.
+  
+---
 
-match_results <- Matching::Match(Y = pci$sixMonthSurvive, Tr = pci$abcix,
-                         X = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
-                         M=3 , Weight = 2, estimand = "ATE")# Weight = 2 = Mahalanobis distance
+# Example: Keele et. al. (2017)
 
+- Read in the data
+
+```{r}
+turn <- haven::read_dta("assets/match-all.dta")
+```
+
+- What's the naive difference-in-means?
+
+```{r}
+lm_robust(black_turnout ~ black, data=turn)
 ```
 
 ---
 
-# Example: Keriakes et. al. (2000)
+# Example: Keele et. al. (2017)
+
+- Visualize the confounding!
+
+```{r, fig.width=7, fig.height=5,  fig.align="center"}
+turn %>% ggplot(aes(x=blackpop_pct1990, y=as.factor(black))) + geom_boxplot(orientation = "y") + scale_y_discrete(labels=c( "No Black candidates", "1+ Black candidates")) +
+  labs(x = "Black population (%, 1990)", y="") + theme_minimal()
+```
+  
+---
+
+# Example: Keele et. al. (2017)
+
+- Visualize the confounding!
+
+```{r, fig.width=7, fig.height=5, warning=F, message=F,  fig.align="center"}
+turn %>% ggplot(aes(y=black_turnout, x=blackpop_pct1990)) + geom_point() + geom_smooth() +
+  labs(x = "Black population (%, 1990)", y="Black turnout") + theme_minimal()
+```
+
+---
+
+# Example: Keele et. al. (2017)
+
+- **Design**: Selection-on-observables with lots of covariates to adjust for:
+  - Population, pct. Black, pct. College degree, pct. High school, pct. Unemployed, median income, pct. below poverty line, home rule charter
+--
+
+- We'll focus on replicating their matching approach for **general** election turnout.
+  - They also look at **runoff** elections where they believe selection-on-observables is more plausible.
+--
+
+- We'll use standard 1-to-1 nearest neighbor matching
+  - The paper itself actually uses a variant of optimal matching that minimizes the total sum of treated-control distances subject to constraints on the covariate-level imbalances.
+
+---
+
+# Example: Keele et. al. (2017)
+
+- We'll implement the Mahalanobis distance 1-to-3 matching estimator
+
+```{r}
+match_results <- Matching::Match(Y = turn$black_turnout, Tr = turn$black,
+                         X = turn %>% dplyr::select(year, pop90, blackpop_pct1990, 
+                                                    college_pct, hs_pct,
+                                                    unemp, income, poverty, home),
+                         M=1 , Weight = 2, estimand = "ATT")
+                        # Weight = 2 = Mahalanobis distance
+```
+
+---
+
+# Example: Keele et. al. (2017)
+
+- Results
 
 ```{r}
 summary(match_results)
 ```
 
-- Results aren't too different from the unadjusted estimate - this might be because of left-over bias. Let's see how well matching improved the balance.
-
 ---
 
+# Example: Keele et. al. (2017)
 
-# Example: Keriakes et. al. (2000)
-
-```{r, message=F}
+```{r, message=F, fig.width=5, fig.height=3, warning=F, message=F, dpi=150, fig.align="center"}
 library(cobalt)
-cobalt::bal.tab(match_results, treat = pci$abcix, covs = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc))
+cobalt::love.plot(match_results, treat = turn$black, covs = turn %>% dplyr::select(year, pop90, blackpop_pct1990, college_pct, hs_pct, unemp, income, poverty, home),
+                                  abs=T, binary="std", thresholds= c(m=.1))
 ```
 
-- Still have pretty bad imbalance on `ejecfrac` and `ves1proc`
 
 ---
 
-# Example: Keriakes et. al. (2000)
+# Example: Keele et. al. (2017)
 
-```{r, fig.align = "center", fig.height=5.5, fig.width=8}
-cobalt::love.plot(match_results, treat = pci$abcix, covs = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
-                  abs=T, binary="std", thresholds= c(m=.1))
-```
-
----
-# Example: Keriakes et. al. (2000)
-
-```{r, fig.align="center", fig.height=5.5, fig.width=8}
-match_weights <- table(c(match_results$index.treated, match_results$index.control))/3
-hist(match_weights, main="Matching weights", xlab="Weight")
-```
-
----
-
-# Example: Keriakes et. al. (2000)
-
-- Let's add on the bias correction
+- What happens if we force **exact** matching on year?
 
 ```{r}
-match_biasadj <- Matching::Match(Y = pci$sixMonthSurvive, Tr = pci$abcix,
-                         X = pci %>% dplyr::select(stent, female, diabetic, height, acutemi, ejecfrac, ves1proc),
-                         M=3 , Weight = 2, estimand = "ATE", BiasAdjust = T)# Weight = 2 = Mahalanobis distance
-
-summary(match_biasadj)
-
+match_results2 <- Matching::Match(Y = turn$black_turnout, Tr = turn$black,
+                         X = turn %>% dplyr::select(year, pop90, blackpop_pct1990, 
+                                                    college_pct, hs_pct,
+                                                    unemp, income, poverty, home),
+                         exact = c(T, F, F, F, F, F, F, F, F),
+                         M=1 , Weight = 2, estimand = "ATT")
+                        # Weight = 2 = Mahalanobis distance
 ```
 
+---
+
+# Example: Keele et. al. (2017)
+
+- Results
+
+```{r}
+summary(match_results2)
+```
+
+---
+
+# Example: Keele et. al. (2017)
+
+```{r, message=F, fig.width=5, fig.height=3, warning=F, message=F, dpi=150, fig.align="center"}
+cobalt::love.plot(match_results2, treat = turn$black, covs = turn %>% dplyr::select(year, pop90, blackpop_pct1990, college_pct, hs_pct, unemp, income, poverty, home),
+                                  abs=T, binary="std", thresholds= c(m=.1))
+```
+
+---
+
+# Example: Keele et. al. (2017)
+
+- Now, what if we add in the bias-correction (the regression)
+
+```{r}
+match_results_bc <- Matching::Match(Y = turn$black_turnout, Tr = turn$black,
+                         X = turn %>% dplyr::select(year, pop90, blackpop_pct1990, 
+                                                    college_pct, hs_pct,
+                                                    unemp, income, poverty, home),
+                         M=1 , Weight = 2, estimand = "ATT", BiasAdjust = T)
+                        # Weight = 2 = Mahalanobis distance
+```
+
+
+---
+
+# Example: Keele et. al. (2017)
+
+```{r}
+summary(match_results_bc) 
+```
 
 ---
 
@@ -462,6 +615,7 @@ summary(match_biasadj)
 --
   - However, matching is not a universal panacea even if we buy selection-on-observables
     - Still have residual imbalance due to imperfect matches.
+    - Matching in high-dimensional space is tricky.
 --
   - **Combining** matching and regression
     - Matching is commonly framed as a "pre-processing" step prior to regression to avoid regression imputations that are far from the data.
@@ -591,8 +745,8 @@ $$\hat{\tau}_{\text{reg}} = \frac{1}{N} \sum_{i=1}^N \hat{\mu}_1(X_i) - \hat{\mu
 
 # Regression imputation in practice
 
-- Let's take a look again at our Keriakes et. al. data. Let's consider first adjusting for a single covariate: `ejecfrac` - a measure of how much blood is pumped out of the left ventricle each time the heart pumps
-  - Low values represent a patient with a poorly-working heart. These patients were more likely to receive the treatment.
+- Let's take a look again at our Keele et. al. (2017). data. Let's consider first adjusting for a single covariate: black share of the population.
+  - This is arguably the biggest confounding story 
 - Before running any regression, it's very useful to plot the data using a **binned scatterplot**
 
 ```{r echo=F}
@@ -657,7 +811,7 @@ stat_binscatter <- function(mapping = NULL, data = NULL, geom = "point",
 ```
 
 ```{r, echo=F, fig.align="center", fig.height=5}
-pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(abcix))) + stat_binscatter(bins = 6, size = 3) + xlab("Ejection Fraction") + ylab("Pr(Survival at six months)") + scale_colour_manual("Abciximab", values=c("indianred", "dodgerblue")) + theme_bw()
+turn %>% ggplot(aes(x=blackpop_pct1990, y=black_turnout, colour=as.factor(black))) + stat_binscatter(bins = 12, size = 3) + xlab("Black % of Population") + ylab("Black Turnout") + scale_colour_manual("Black Candidate", values=c("indianred", "dodgerblue")) + theme_minimal()
 ```
 
 ---
@@ -667,11 +821,10 @@ pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(a
 - Now let's fit a linear regression in each treatment condition
 
 ```{r, echo=F, fig.align="center", fig.height=5}
-pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(abcix))) + stat_binscatter(bins = 6, size = 3) + geom_smooth(method=lm_robust, formula=y ~ x) + xlab("Ejection Fraction") + ylab("Pr(Survival at six months)") + scale_colour_manual("Abciximab", values=c("indianred", "dodgerblue")) + theme_bw()
+turn %>% ggplot(aes(x=blackpop_pct1990, y=black_turnout, colour=as.factor(black))) + stat_binscatter(bins = 12, size = 3) + geom_smooth(method=lm_robust, formula=y ~ x) + xlab("Black % of Population") + ylab("Black Turnout") + scale_colour_manual("Black Candidate", values=c("indianred", "dodgerblue")) + theme_minimal()
 ```
 
-- Note the approximation works kinda well in the range where we have a *lot* of data, but for some $X_i$ we end up predicting impossible probabilities.
-  - How concerned should we be? Let's see how good the overlap is between treated and control?
+- Note the approximation works kinda well in the range where we have a *lot* of data, but is a lot worse at the tails.
   
 ---
 
@@ -680,7 +833,7 @@ pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(a
 - If we have **zero** overlap between treatment and control in the covariates, our counterfactual predictions will be based on extreme extrapolations -- lots of model sensitivity
 
 ```{r, echo=F, fig.align="center", fig.height=5}
-pci %>% ggplot(aes(x=ejecfrac)) + geom_histogram(bins=20) + xlab("Ejection Fraction") + facet_wrap(~abcix, ) + theme_bw()
+turn %>% ggplot(aes(x=blackpop_pct1990)) + geom_histogram(bins=20) + xlab("Black % of Population") + facet_wrap(~black, ) + theme_bw()
 ```
 
 - Here it's not too bad
@@ -692,7 +845,7 @@ pci %>% ggplot(aes(x=ejecfrac)) + geom_histogram(bins=20) + xlab("Ejection Fract
 - What happens if we use a quadratic fit?
 
 ```{r, echo=F, fig.align="center", fig.height=6}
-pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(abcix))) + stat_binscatter(bins = 6, size = 3) + geom_smooth(method=lm_robust, formula=y ~ x + I(x^2)) + xlab("Ejection Fraction") + ylab("Pr(Survival at six months)") + scale_colour_manual("Abciximab", values=c("indianred", "dodgerblue")) + theme_bw()
+turn %>% ggplot(aes(x=blackpop_pct1990, y=black_turnout, colour=as.factor(black))) + stat_binscatter(bins = 12, size = 3) + geom_smooth(method=lm_robust, formula=y ~ x + I(x^2)) + xlab("Black % of Population") + ylab("Black Turnout") + scale_colour_manual("Black Candidate", values=c("indianred", "dodgerblue")) + theme_minimal()
 ```
 
 ---
@@ -702,7 +855,7 @@ pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(a
 - Local linear regression smoothers are also popular
 
 ```{r, echo=F, fig.align="center", fig.height=6}
-pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(abcix))) + stat_binscatter(bins = 6, size = 3) + geom_smooth(method=loess, formula=y~x) + xlab("Ejection Fraction") + ylab("Pr(Survival at six months)") + scale_colour_manual("Abciximab", values=c("indianred", "dodgerblue")) + theme_bw()
+turn %>% ggplot(aes(x=blackpop_pct1990, y=black_turnout, colour=as.factor(black))) + stat_binscatter(bins = 12, size = 3) + geom_smooth(method=loess, formula=y ~ x) + xlab("Black % of Population") + ylab("Black Turnout") + scale_colour_manual("Black Candidate", values=c("indianred", "dodgerblue")) + theme_minimal()
 ```
 
 ---
@@ -714,15 +867,19 @@ pci %>% ggplot(aes(x=ejecfrac, y=as.numeric(sixMonthSurvive), colour=as.factor(a
 ```{r}
 
 # Fit regression models
-mu_1 <- lm_robust(sixMonthSurvive ~ stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data = pci %>% filter(abcix == 1))
-mu_0 <- lm_robust(sixMonthSurvive ~ stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data = pci %>% filter(abcix == 0))
+mu_1 <- lm_robust(black_turnout ~ pop90 + blackpop_pct1990 + I(blackpop_pct1990^2) + 
+                    unemp + college_pct + hs_pct + unemp + income + poverty + home +
+                    as.factor(year),  data = turn %>% filter(black == 1))
+mu_0 <- lm_robust(black_turnout ~ pop90 + blackpop_pct1990 + I(blackpop_pct1990^2) + 
+                    unemp + college_pct + hs_pct + unemp + income + poverty + home +
+                    as.factor(year),  data = turn %>% filter(black == 0))
 
 # Predict onto the sample
-pci$y1 <- predict(mu_1, newdata=pci)
-pci$y0 <- predict(mu_0, newdata=pci)
+turn$y1 <- predict(mu_1, newdata=turn)
+turn$y0 <- predict(mu_0, newdata=turn)
 
 # Point estimate
-point <- mean(pci$y1) - mean(pci$y0)
+point <- mean(turn$y1) - mean(turn$y0)
 point
 
 ```
@@ -739,11 +896,13 @@ point
 - Recall that the Lin (2013) estimator (with full interactions w/ treatment) is essentially fitting two regressions
 
 ```{r}
-reg_ate <- lm_lin(sixMonthSurvive ~ abcix, 
-                  covariates = ~ stent + female + diabetic + height + acutemi + ejecfrac  + I(ejecfrac^2) + ves1proc + I(ves1proc^2), 
-                  data = pci)
+reg_ate <- lm_lin(black_turnout ~ black, 
+                  covariates = ~ pop90 + blackpop_pct1990 + I(blackpop_pct1990^2) + 
+                    unemp + college_pct + hs_pct + unemp + income + poverty + home +
+                    as.factor(year), 
+                  data = turn)
 
-tidy(reg_ate) %>% filter(term == "abcix")
+tidy(reg_ate) %>% filter(term == "black") %>% dplyr::select(term, estimate, std.error, p.value)
 ```
 
 - The coefficient on treatment captures the difference between these two regression functions averaged over the distribution of the data
@@ -858,19 +1017,22 @@ where $w_i = (D_i - E[D_i | X_i])^2$
 # Regression weighting
 
 ```{r}
-full_reg <- lm_robust(sixMonthSurvive ~ abcix + stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data=pci)
-tidy(full_reg) %>% filter(term == "abcix")
+full_reg <- lm_robust(black_turnout ~ black + pop90 + blackpop_pct1990 + I(blackpop_pct1990^2) + 
+                    unemp + college_pct + hs_pct + unemp + income + poverty + home +
+                    as.factor(year), data=turn)
+tidy(full_reg) %>% filter(term == "black") %>% dplyr::select(term, estimate, std.error, p.value)
 
 # Get the weights
-resid_reg <- lm_robust(abcix ~stent + female + diabetic + height + acutemi + ejecfrac + I(ejecfrac^2) + ves1proc + I(ves1proc^2), data=pci)
-pci$abcix_resid <- pci$abcix - resid_reg$fitted.values
+resid_reg <- lm_robust(black ~ pop90 + blackpop_pct1990 + I(blackpop_pct1990^2) + 
+                    unemp + college_pct + hs_pct + unemp + income + poverty + home +
+                    as.factor(year), data=turn)
+turn$black_resid <- turn$black - resid_reg$fitted.values
 # Show FWL working
-partial_reg <- lm_robust(sixMonthSurvive ~ abcix_resid, data=pci)
-tidy(partial_reg) %>% filter(term == "abcix_resid")
+partial_reg <- lm_robust(black_turnout ~ black_resid, data=turn)
+tidy(partial_reg) %>% filter(term == "black_resid") %>% dplyr::select(term, estimate)
 
 # Weights on individual treatment effects
-pci$abcix_w <- pci$abcix_resid^2
-
+turn$black_w <- turn$black_resid^2
 ```
 
 ---
@@ -879,7 +1041,7 @@ pci$abcix_w <- pci$abcix_resid^2
 
 ```{r, echo=F, fig.height=6, fig.align="center"}
 # Summarize
-hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
+hist(turn$black_w, main = "", xlab="Weight on treatment effect")
 ```
 
 ---
@@ -923,6 +1085,8 @@ hist(pci$abcix_w, main = "", xlab="Weight on treatment effect")
 
 - For more, see
 > Westreich, Daniel, and Sander Greenland. "The table 2 fallacy: presenting and interpreting confounder and modifier coefficients." American journal of epidemiology 177.4 (2013): 292-298.
+
+> Hünermund, Paul, and Beyers Louw. "On the Nuisance of Control Variables in Causal Regression Analysis." Organizational Research Methods (2023)
 
 ---
 
