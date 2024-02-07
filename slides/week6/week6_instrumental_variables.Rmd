@@ -573,6 +573,17 @@ iv_robust(voted ~ getpost | post, data=wapost)
 
 ---
 
+
+# Discussion: The rainfall instrument
+
+.center[<img src="assets/mellon.png" alt = "rain", height="450px">]
+
+> Mellon (2023) "Rain, Rain, Go Away: 195 Potential Exclusion-Restriction Violations for Studies Using Weather as an Instrumental Variable"
+
+---
+
+
+
 class: title-slide
 
 # Estimation and inference for IV
