@@ -106,7 +106,7 @@ mk1 <- study1 %>%
 mk2 <- mk1 %>% rbind(study1 %>% 
  filter(.,
         mk_context_fac == "Original") %>% 
- iv_robust(mk_dv ~ I(mk_correct_recall*mk_main_treat)|mk_main_treat, data = .) %>% 
+ iv_robust(mk_dv ~ I(mk_correct_recall*mk_main_treat)|mk_main_treat, data = ., se = "HC0") %>% 
  tidy(.) %>% filter(term!= "(Intercept)") %>% 
  mutate(., 
         term = "Trade Preference: \nIV Effect of Info Reception \n on Support \nfor Trade",
