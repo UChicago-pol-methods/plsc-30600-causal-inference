@@ -1,5 +1,5 @@
 ---
-title: "Week 7: Difference-in-differences"
+title: "Week 7: Differences-in-differences"
 subtitle: "PLSC 30600 - Causal Inference"
 # author: "Anton Strezhnev"
 output: 
@@ -257,7 +257,9 @@ $$Y_{i1} - Y_{i0} = \alpha + \tau D_i + \epsilon_i$$
   - Unique parameter for each *time period*
 
 $$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
---
+---
+
+# Fixed-effects estimators
 
 - **Expectations**: 
   - $E[Y_{i0} | D_i = 0] = E[\alpha_i | D_i = 0] + \delta_0$
@@ -277,6 +279,10 @@ $$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
 
 - Does **not** generalize neatly to many time periods w/ variation in treatment timing.
   - Need to believe the constant, instantaneous treatment effect $\tau$
+--
+
+- Need to account for dependence in observations between time periods w/in same unit
+  - "Cluster-robust" SEs or block bootstrap
 
 ---
 
@@ -296,37 +302,6 @@ $$\widehat{Y_{i1}(0)} = Y_{i0} - \left\{\frac{1}{N_c} \sum_{j:D_j = 0} Y_{j1} - 
 - Can also imagine fitting a model among *only* the control periods ( $D_{it} = 0$ ) and using the model to predict on the treated units.
 
 $$E[Y_{it} | D_{it} = 0] = \alpha_i + \delta_t$$
-
----
-
-# Standard errors
-
-- Recall the classic "sandwich" form for the variance-covariance matrix of the OLS coefficients
-
-$$Var(\hat{\beta} | \mathbf{X}) = (\mathbf{X}^{\prime}\mathbf{X})^{-1}\mathbf{X^{\prime}}\Omega\mathbf{X}(\mathbf{X}^{\prime}\mathbf{X})^{-1}$$
-- $\Omega$ is the outer product of the error terms $\epsilon\epsilon^{\prime}$
-
---
-
-- We can't just plug in the outer product of the residuals as our estimator. $\hat{\Omega} = \hat{\epsilon}\hat{\epsilon}^{\prime}$ will not yield a consistent estimator of $Var(\hat{\beta})$.
-  - Under independence across observations $Cov(\epsilon_i, \epsilon_j) = 0$ and homoskedasticity, $\Omega$ is the identity matrix multiplied by a constant $\sigma^2$ and we get our conventional OLS SE estimator.
-  - Under independence but with heteroskedasticity, we can construct a plug-in estimator $\hat{\Omega}$ with $0$ on the off-diagonals and the squared residuals $\hat{\epsilon_i}^2$ on the diagonals. This yields a consistent estimator for $Var(\hat{\beta})$ (Huber-White SEs)
-
----
-
-# Standard errors
-
-- In the TWFE setting, we might believe that errors are independent across units: $Cov(\epsilon_{it}, \epsilon_{jt}) = 0$ but that there is within-unit correlation over time: $Cov(\epsilon_{it}, \epsilon_{it^{\prime}}) \neq 0$. Huber-White assumptions are incorrect.
-- Alternative: **Cluster-robust Standard Errors.**
-  - Assume $\Omega$ is block-diagonal (no error covariance across clusters, unrestricted error covariance within cluster)
-  - $\hat{\Omega_c} = \hat{\epsilon_c}\hat{\epsilon_c}^{\prime}$
-
-$$\widehat{Var(\hat{\beta} | \mathbf{X})} = (\mathbf{X}^{\prime}\mathbf{X})^{-1}\left[\sum_{c}\mathbf{X^{\prime}_{c}}\hat{\Omega}_c\mathbf{X_c}\right](\mathbf{X}^{\prime}\mathbf{X})^{-1}$$
-
---
-
-- Consistent but biased w/ small numbers of clusters: typically augment with a small-sample correction (CR1, CR2, etc...)
-  - Cluster bootstrap also performs somewhat better in smaller samples.
 
 ---
 
@@ -517,25 +492,17 @@ $$\hat{\tau} = \underbrace{\left\{\hat{\mathbb{E}}[Y_{i0} | D_i = 1] - \hat{\mat
 
 ---
 
-# Lags and leads plot
+# "Event study" plots
 
 - It's extremely common to fit a "dynamic" specification of the two-way fixed effects regression to estimate both the placebos and the effects for each distinct post-treatment period
 
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D^{(l)}_{it} + \sum_{l=1}^{T} \tau_l D^{(l)}_{it} + \epsilon_{it}$$
 
-$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D_i \mathcal{I(t = l)} + \sum_{l=1}^{T} \tau_l D_i \mathcal{I(t = l)} + \epsilon_{it}$$
-
---
-
-- Alternatively, we can write this as
-
-
-$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D^{l}_{it} + \sum_{l=1}^{T} \tau_l D^{l}_{it} + \epsilon_{it}$$
-
-where $D_{it}^{l}$ is a dummy variable for whether a unit $i$ at time $t$ is $l$ periods away from initiating treatment (always $0$ for never-treated units)
+where $D_{it}^{(l)}$ is a dummy variable for whether a unit $i$ at time $t$ is $l$ periods away from initiating treatment (always $0$ for never-treated units)
 
 --
 
-- When all (but one) of the leads and lags are included, the estimated coefficients are equivalent to the 2x2 DiD from period $l$ to period $0$ 
+- When there is no staggered adoption, the estimated coefficients are equivalent to the 2x2 DiD from period $l$ to the left-out period (above: $0$) 
   - For the pre-treatment periods these are placebos ($\gamma$)
   - For the post-treatment periods these are treatment effects for time $l$ ($\tau$)
 
