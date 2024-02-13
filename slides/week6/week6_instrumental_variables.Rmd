@@ -506,7 +506,7 @@ lm_robust(voted ~ getpost, data=wapost)
 ```
 
 - Post subscribers are 6pp more likely to vote in the 2005 VA gubernatorial election. 
-  - But is this causal No!
+  - But is this causal? No!
  
 ---
 
@@ -707,59 +707,6 @@ $$\hat{Y_i} = X_i^{\prime}\hat{\beta} + \hat{\tau} \hat{D_i}$$
 - The coefficient on the fitted values is the IV estimate 
   - But, the standard errors will be wrong - Why?
 
-
----
-
-# General 2SLS
-
-- A more general matrix-algebra-y way of representing 2SLS is with the linear model
-
-$$\mathbf{Y} = \mathbf{X}\beta + \epsilon$$
-where $\mathbf{X}$ is an $n$ by $K$ matrix of endogenous variables and exogenous covariates.
-
---
-
-- $\mathbf{Z}$ is an $n$ by $L$ matrix of exogenous instruments and exogenous covariates.
-
---
-
-- Key assumptions:
-  - $E[\epsilon_i | \mathbf{Z}] = 0$ (instruments are exogenous)
-  - $\mathbf{Z}$ is excluded from the outcome model
-
----
-
-# General 2SLS
-
-- We define a projection matrix $\mathbf{P}_{\mathbf{z}} = \mathbf{Z}(\mathbf{Z}^{\prime}\mathbf{Z})^{-1}\mathbf{Z}^{\prime}$
-- The "fitted values" from the first stage can be written as 
-
-$$\hat{\mathbf{X}} = \mathbf{P}_{\mathbf{z}} \mathbf{X}$$
-- Two features of the projection matrix: $\mathbf{P}_\mathbf{z}^{\prime} = \mathbf{P}_\mathbf{z}$ and $\mathbf{P}_\mathbf{z}\mathbf{P}_\mathbf{z} = \mathbf{P}_\mathbf{z}$
---
-
-- So our 2SLS IV estimator can be written as 
-
-$$\begin{align*}
-\hat{\beta}_{\text{IV}} &= (\hat{\mathbf{X}}^{\prime}\hat{\mathbf{X}})^{-1}\hat{\mathbf{X}}^{\prime}\mathbf{Y}\\
-&=  ((\mathbf{P}_{\mathbf{z}} \mathbf{X})^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}(\mathbf{P}_{\mathbf{z}} \mathbf{X})^{\prime}\mathbf{Y}\\
-&=  (\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}}\mathbf{Y}
-\end{align*}$$
-
-- We have an expression for our IV estimator $\hat{\beta}_{\text{IV}}$ purely in terms of $X$ and $Z$
-
----
-
-# Variance estimation
-
-- Note that the residuals are $\hat{\epsilon} = \mathbf{Y} - \mathbf{X}\hat{\beta}_{\text{IV}}$. We can plug these in to our usual sandwich estimator for heteroskedasticity-robust SEs
-
-- Our sandwich estimator can be written as
-
-$$\widehat{Var(\hat{\beta}_{\text{IV}})} = (\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}}[\text{diag}(\hat{\epsilon}_i^2)]\mathbf{P}_{\mathbf{z}} \mathbf{X}(\mathbf{X}^{\prime}\mathbf{P}_{\mathbf{z}} \mathbf{X})^{-1}$$
-
-- This is how any conventional 2SLS routine in R will calculate the standard errors.
-
 ---
 
 # Illustrating 2SLS
@@ -798,6 +745,7 @@ summary(first_stage)
 wapo_2sls <- iv_robust(voted ~ getpost  + Bfemale + reportedage | post + Bfemale + reportedage, data= wapost)
 summary(wapo_2sls)
 ```
+
 ---
 
 # Illustrating 2SLS
