@@ -58,6 +58,18 @@ class: title-slide
 $$
   \require{cancel}
 $$
+
+```{css, echo=F}
+.center2 {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
+```
+
 ```{r, echo=F, warning=F, message=F}
 library(tidyverse)
 library(estimatr)
@@ -451,28 +463,285 @@ quantile(boot_est, c(.025, .975))
 class: title-slide
 
 # Difference-in-differences with many time periods
-$$
-  \require{cancel}
-$$
+
+---
+
+# Classic 2x2 DiD
+
+- DiD estimators can be understood in terms of averages over 2x2 comparisons between units $i$ and $i^\prime$ and time periods $t$ and $t^\prime$
+
+$$\underbrace{\bigg[Y_{it} - Y_{i^\prime t} \bigg]}_{\text{cross-sectional difference at time } t} - \underbrace{\bigg[Y_{it^\prime} - Y_{i^\prime t^\prime} \bigg]}_{\text{cross-sectional difference at time } t^\prime}$$
+
+--
+
+- In the classic 2x2 case, we have time period $t$ as the period where treatment is assigned to some units and $t^\prime$ as the "pre-treatment" period.
+  - Compare units $i$ in treatment with units $i^\prime$ in the control: $D_{i} = 1, D_{i^\prime} = 0$
+
+---
+
+# Classic 2x2 DiD
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD with 2 periods, 2 groups"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-3, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (-1, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+
+\node[draw=black, fit=(a1t1)  (a1t2), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+
+\end{tikzpicture}
+ 
+```
+]
 
 ---
 
 # DiD with no staggered adoption
 
-- Suppose that instead of having two time periods, we have $T$ post-treatment periods and $Q$ pre-treatment periods
-  - Normalize $t$ so that treatment starts at $t=1$ for the treated units and the control units never initiate treatment.
+- Suppose that instead of having two time periods, we have $T-1$ post-treatment periods and $Q$ pre-treatment periods
+  - Normalize $t$ so that treatment starts at $t=0$ for the treated units and the control units never initiate treatment.
   - Still assume two treatment groups $D_i = 1$ and $D_i = 0$.
 --
 
-- Does TWFE still work here? 
+- **Static** TWFE
 
 $$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
-
-- Yes! - $\tau$ is an average of the ATTs in the post-treatment periods $\{0, 1, 2, \dotsc, T\}$
-  - We can imagine collapsing the dataset to a standard 2x2 diff-in-diff by averaging pre-/post-treatment outcomes among the treated and control gropus.
 --
 
-- Can we do more with the regression?
+- **Dynamic** TWFE
+
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-2} \gamma_l D^{(l)}_{it} + \sum_{l=0}^{T-1} \tau_l D^{(l)}_{it} + \epsilon_{it}$$
+
+where $D_{it}^{(l)}$ is a dummy indicator for observation $i$ being $l$ periods from treatment initiation at time $t$
+
+---
+
+# DiD with no staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD with 4 periods, 2 groups"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$0$};
+
+\node[draw=black, fit=(a1t1)  (a1t2) (a1t3) (a1t4), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# DiD with no staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD with 4 periods, 2 groups - relative treatment time"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-1, 7.5) node (t0) {Relative Time};
+\draw (-4, 6) node (t1) {$-2$};
+\draw (-2, 6) node (t2) {$-1$};
+\draw (0, 6) node (t3) {$0$};
+\draw (2, 6) node (t4) {$1$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$0$};
+
+\node[draw=black, fit=(a1t1)  (a1t2) (a1t3) (a1t4), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# DiD with no staggered adoption
+
+- Do these regressions still identify an ATT under **no staggered adoption**
+--
+
+- **Dynamic** TWFE: Yes! 
+  - $\hat{\tau_l}$ is the 2x2 DiD between period $l$ and the held-out "baseline" period (period $-1$)
+  - Under parallel trends, this identifies the ATT in period $l$
+--
+
+- **Static** TWFE: Also Yes!
+  - $\hat{\tau}$ is an average over the 2x2 diff-in-diffs between each post-treatment and each pre-treatment period.
+  - Equivalent to collapsing the data into a 2x2 DiD by averaging overall pre- and post- outcomes for treated/control
+
+---
+
+# DiD with no staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Static TWFE 2x2s"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$0$};
+
+% Draw matched sets
+\node[draw=diff1, fit= (a1t4) (a1t3), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t4) (a2t3), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit= (a1t1) (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit= (a2t1) (a2t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# DiD with no staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Dynamic TWFE - relative time 1"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-1, 7.5) node (t0) {Relative Time};
+\draw (-4, 6) node (t1) {$-2$};
+\draw (-2, 6) node (t2) {$-1$};
+\draw (0, 6) node (t3) {$0$};
+\draw (2, 6) node (t4) {$1$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$0$};
+
+% Draw matched sets
+\node[draw=diff1, fit= (a1t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
 
 ---
 
@@ -484,31 +753,100 @@ $$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
 $$E[Y_{it}(0) - Y_{it^{\prime}}(0)| D_i = 1] = E[Y_{it}(0) - Y_{it^{\prime}}(0) | D_i = 0]$$
   
 --
+
 - **Placebo/Pre-trends test**
 
-$$\hat{\tau} = \underbrace{\left\{\hat{\mathbb{E}}[Y_{i0} | D_i = 1] - \hat{\mathbb{E}}[Y_{i0} | D_i = 0]\right\}}_{\text{Difference-in-means in time 0}} -  \underbrace{\left\{\hat{\mathbb{E}}[Y_{i-1} | D_i = 1] - \hat{\mathbb{E}}[Y_{i-1} | D_i = 0]\right\}}_{\text{Difference-in-means in time -1}}$$
+$$\hat{\tau} = \underbrace{\left\{\hat{\mathbb{E}}[Y_{i-1} | D_i = 1] - \hat{\mathbb{E}}[Y_{i-1} | D_i = 0]\right\}}_{\text{Difference-in-means in time -1}} -  \underbrace{\left\{\hat{\mathbb{E}}[Y_{i-2} | D_i = 1] - \hat{\mathbb{E}}[Y_{i-2} | D_i = 0]\right\}}_{\text{Difference-in-means in time -2}}$$
 
-- If parallel trends holds then this "placebo" difference-in-differences should be zero.
+- If the "general" form of parallel trends holds then this "placebo" difference-in-differences should be zero.
+  - In both time $-1$ and $-2$, all units are under control.
+  - Generally true for any periods where treatment has not been initiated (lots of possible placebo tests w/ different baselines)
+
 
 ---
 
 # "Event study" plots
 
-- It's extremely common to fit a "dynamic" specification of the two-way fixed effects regression to estimate both the placebos and the effects for each distinct post-treatment period
+- Some placebo tests are part of our "dynamic" specification
 
-$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-1} \gamma_l D^{(l)}_{it} + \sum_{l=1}^{T} \tau_l D^{(l)}_{it} + \epsilon_{it}$$
-
-where $D_{it}^{(l)}$ is a dummy variable for whether a unit $i$ at time $t$ is $l$ periods away from initiating treatment (always $0$ for never-treated units)
-
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-2} \gamma_l D^{(l)}_{it} + \sum_{l=0}^{T-1} \tau_l D^{(l)}_{it} + \epsilon_{it}$$
 --
 
-- When there is no staggered adoption, the estimated coefficients are equivalent to the 2x2 DiD from period $l$ to the left-out period (above: $0$) 
-  - For the pre-treatment periods these are placebos ($\gamma$)
-  - For the post-treatment periods these are treatment effects for time $l$ ($\tau$)
+- When there is no staggered adoption, the $\gamma$ coefficients are equivalent to the "placebo" DiD between period $l$ and the baseline held-out period $-1$.
 
 ---
 
-# Example: Paglayan (2019, APSR)
+# Placebo tests
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Dynamic TWFE - placebo -2"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+
+\draw (-1, 7.5) node (t0) {Relative Time};
+\draw (-4, 6) node (t1) {$-2$};
+\draw (-2, 6) node (t2) {$-1$};
+\draw (0, 6) node (t3) {$0$};
+\draw (2, 6) node (t4) {$1$};
+
+\draw (-5, 7) -- (-5, 1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$0$};
+
+% Draw matched sets
+\node[draw=diff1, fit= (a1t1), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t1), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# "Event study" plots
+
+- What we want!
+
+.center[<img src="assets/good_did-1.png" alt = "good_did", height="400px">]
+
+
+---
+
+# "Event study" plots
+
+- What is likely very concerning!
+
+.center[<img src="assets/bad_did-1.png" alt = "bad_did", height="400px">]
+
+
+---
+
+# Example: Paglayan (2019, AJPS)
 
 - Paglayan (2019) examines whether the implementation of mandatory collective barganing in some states affects state expenditures on education
   - Cross-sectionally, states with collective bargaining laws spend more on education
@@ -529,7 +867,7 @@ table(union$YearCBrequired)
 ---
 
 
-# Example: Paglayan (2019, APSR)
+# Staggered adoption
 
 - Collective bargaining laws were rolled out in a *staggered* fashion
 --
@@ -540,22 +878,23 @@ panelview(data=union, D="CBrequired_SY", index=c("State", "year"), axis.adjust=T
 
 ---
 
-# Example: Paglayan (2019, APSR)
+# Example: Paglayan (2019, AJPS)
 
-- Let's focus on just the 1970 cohort versus the never-treated for illustration
+- Let's focus on just the group that implemented the law in 1970 versus the never-treated group to illustrate the case without staggering.
+  - Two treatment "histories" (start in 1970 vs. never start)
+  - Outcome: Student-teacher ratios
 
 ```{r, message=F, warning=F}
 union_1970 <- union %>% filter(is.na(YearCBrequired)|YearCBrequired == 1970)
 union_1970$treated <- as.numeric(!is.na(union_1970$YearCBrequired))
 
-# First, the TWFE
+# First, the static specification
 lm_robust(studteachratio ~ CBrequired_SY, fixed_effects = ~ as.factor(year) + as.factor(State), data=union_1970, cluster=State)
-
 ```
 
 ---
 
-# Example: Paglayan (2019, APSR)
+# Example: Paglayan (2019, AJPS)
 
 - Now the "event study" plot 
 
@@ -573,9 +912,9 @@ event_study <- rbind(event_study, data.frame(yearEst = 1969, estimate = 0, conf.
 
 ---
 
-# Example: Paglayan (2019, APSR)
+# Example: Paglayan (2019, AJPS)
 
-```{r, echo=F, message=F, warning=F, fig.align="center", fig.height=7}
+```{r, echo=F, message=F, warning=F, fig.align="center", fig.width=10}
 event_study %>% ggplot(aes(x=as.numeric(yearEst), y = estimate, ymin=conf.low, ymax=conf.high)) + geom_point() + geom_pointrange() +
   xlab("Year") + ylab("Estimated effect on student-teacher ratio") + geom_vline(xintercept = 1969.5, lty=2) + geom_hline(yintercept = 0, lty=2) +
   theme_bw()
@@ -608,6 +947,61 @@ $$Y_{it}(g) = Y_{it} \text{ if } G_i = g$$
 
 # DiD with staggered adoption
 
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD with 4 periods, 3 timing groups"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=black, fit=(a1t1)  (a1t2) (a1t3) (a1t4), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+\node[draw=red, fit=(a2t1)  (a2t2) (a2t3) (a2t4), inner sep=.2ex, line width = 1.5, dashed] (cohort2) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# DiD with staggered adoption
+
 - Building block: **"Group-Time" ATT** (Callaway and Sant'anna)
 
 $$\tau_{gt} = E[Y_{it}(g) - Y_{it}(\infty) | G_i = g]$$
@@ -628,7 +1022,7 @@ $$Y_{it}(g) = Y_{it}(\infty) \forall t < g$$
 
 $$E[Y_{it}(\infty) - Y_{it^{\prime}}(\infty)| G_i = g] - E[Y_{it}(\infty) - Y_{it^{\prime}}(\infty)| G_i = g^{\prime}]$$
 
-- Somewhat weaker version allowed in Callaway and Sant'anna that only assumes parallel trends w.r.t the never-treateds $G_i = \infty$
+- Somewhat weaker version allowed in Callaway and Sant'anna that only assumes parallel trends with respect to the the never-treateds $G_i = \infty$
 
 
 ---
@@ -640,14 +1034,15 @@ $$E[Y_{it}(\infty) - Y_{it^{\prime}}(\infty)| G_i = g] - E[Y_{it}(\infty) - Y_{i
 $$\hat{\tau_{gt}} = \underbrace{\frac{1}{N_g} \sum_{i: G_i = g} Y_{it} - \frac{1}{N_{g>t}} \sum_{i: G_i > t} Y_{it}}_{\text{Mean difference between group g and not-yet-treated at t}} - \underbrace{\frac{1}{N_g} \sum_{i: G_i = g} Y_{i,g-1} - \frac{1}{N_{g>t}} \sum_{i: G_i > t} Y_{i, g-1}}_{\text{Mean difference between group g and not-yet-treated at g-1}}$$
 --
 
-- Can in principle use *more* pre-treatment periods (everything from 1 to $g-1$)
-  - Callaway and Sant'anna `did` package just uses one but allows a user to use earlier time periods if there might be anticipation.
+- This is implemented in the Callaway and Sant'anna (2021) estimator
+  - R package: `did`
 
 ---
 
 # Visualizing group effects
 
-```{tikz, echo=F, fig.align="center"}
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD for group 1, time 3"}
 \usetikzlibrary{shapes}
 \usetikzlibrary{positioning}
 \usetikzlibrary{arrows}
@@ -655,52 +1050,163 @@ $$\hat{\tau_{gt}} = \underbrace{\frac{1}{N_g} \sum_{i: G_i = g} Y_{it} - \frac{1
 \usetikzlibrary{shapes.symbols}
 \usetikzlibrary{shadows}
 \usetikzlibrary{fit}
-\begin{tikzpicture}[scale=.6]
-\draw (-3, 3) node (l0) {Unit};
-\draw (-3, 2) node (l1) {$1$};
-\draw (-3, 1) node (l2) {$2$};
-\draw (-3, 0) node (l3) {$3$};
-\draw (-3, -1) node (l4) {$4$};
-\draw (-3, -2) node (l5) {$5$};
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
 
-\draw (-1, 4) node (t0) {Time};
-\draw (-2, 3) node (t1) {$0$};
-\draw (-1, 3) node (t1) {$1$};
-\draw (0, 3) node (t1) {$2$};
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
 
-\draw (-2.5, 4.5) -- (-2.5, -2.5);
-\draw (-3.5, 2.5) -- (0.5, 2.5);
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
 
-\draw (-2, 2) node (a1t1) {$0$};
-\draw (-1, 2) node (a1t2) {$1$};
-\draw (0, 2) node (a1t3) {$1$};
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
 
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
 
-\draw (-2, 1) node (a2t1) {$0$};
-\draw (-1, 1) node (a2t2) {$1$};
-\draw (0, 1) node (a2t3) {$1$};
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
 
-
-\draw (-2, 0) node (a3t1) {$0$};
-\draw (-1, 0) node (a3t2) {$0$};
-\draw (0, 0) node (a3t3) {$1$};
-
-
-\draw (-2, -1) node (a4t1) {$0$};
-\draw (-1, -1) node (a4t2) {$0$};
-\draw (0, -1) node (a4t3) {$1$};
-
-
-\draw (-2, -2) node (a5t1) {$0$};
-\draw (-1, -2) node (a5t2) {$0$};
-\draw (0, -2) node (a5t3) {$0$};
-
-\node[draw=black, fit=(a1t1) (a1t2) (a1t3) (a2t1) (a2t2) (a2t3), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
-\node[draw=red, fit=(a3t1) (a3t2) (a3t3) (a4t1) (a4t2) (a3t3), inner sep=.2ex, line width = 1.5, dashed] (cohort2) {};
+\node[draw=diff1, fit= (a1t3), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t3) (a3t3), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t2) (a3t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
 
 \end{tikzpicture}
  
 ```
+]
+
+---
+
+# Visualizing group effects
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD for group 1, time 4"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=diff1, fit= (a1t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit=  (a3t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a3t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# Visualizing group effects
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD for group 2, time 4"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=diff1, fit= (a2t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit=  (a3t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a3t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
 
 ---
 
@@ -733,17 +1239,463 @@ panelview(data=union, D="CBrequired_SY", index=c("State", "year"), axis.adjust=T
 
 # Two-way FE w/ staggered adoption
 
-- Does two-way fixed effects give us something like an average of group-time ATTs?
-  - Not necessarily, the weighting is weird (variance-weighting from regression)
-  - And if treatment effects persist over time, we'll get bias (Goodman-Bacon)
+- Does the **static** specification identify an average of group-time ATTs?
+
+$$Y_{it} = \alpha_i + \delta_{t} + \tau D_{it} + \epsilon_{it}$$
 --
 
-- **Intuition**: Frisch-Waugh-Lovell
+- No! (Goodman-Bacon, 2021)
+  - $\hat{\tau}$ is a weighted average over 2x2 differences-in-differences.
+  - Only **some** of those are valid under our identification assumptions
+  - Others require an additional **constant effects** assumption in order to identify an ATT.
+--
 
-$$\hat{\tau} = \frac{\sum_{i,t} (D_{it} - \hat{D_{it}}) Y_{it}}{\sum_{i,t}(D_{it} - \hat{D_{it}})^2}$$
-- *Two* sources of bias
-  - External validity -- Groups with more ``variable" treatment timings (e.g. groups that start treatment towards the middle of the time-series) receive more weight.
-  - Internal validity - 2-way FE uses *future* periods where two units share the same treatment status as part of the second ``de-biasing" difference. If effects persist over time these are not going to be equal to the selection bias.
+- Intuition:
+  - The TWFE estimator under staggered adoption incorporates 2x2 DiD terms where the "baseline" period is in the **future** (where both units are under treatment)
+  - These comparisons are only valid if we believe effects are constant over time
+
+---
+
+# Two-way FE w/ staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Good 2x2"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=diff1, fit= (a1t3), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t3), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# Two-way FE w/ staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Bad 2x2"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=diff1, fit= (a1t3), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t3), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t4), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t4), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# Two-way FE w/ staggered adoption
+
+- What about the **dynamic** specification?
+
+$$Y_{it} = \alpha_i + \delta_{t} + \sum_{l=-Q}^{-2} \gamma_l D^{(l)}_{it} + \sum_{l=0}^{T-1} \tau_l D^{(l)}_{it} + \epsilon_{it}$$
+
+- Also no! (Sun and Abraham, 2021)
+  - Both $\tau_l$ and $\gamma_l$ incorporate ATTs from *other* relative-times $\neq l$
+  - The **dynamic** specification is only valid if we believe each relative-time treatment effect is constant across timing groups.
+--
+
+- Li and Strezhnev (2024) develop some more of the intuition
+  - Each $\hat{\tau_l}$ incorporates 2x2 DiDs with units that are also **already treated** but at different times
+  - The bias due to the "contaminating" treatment effects gets differenced out by estimating those relative time effects with **different units**
+
+---
+
+# Dynamic TWFE
+
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Dynamic specification - good 2x2s"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Relative Times};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$-2$};
+\draw (-2, 4) node (a1t2) {$-1$};
+\draw (0, 4) node (a1t3) {$0$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$-3$};
+\draw (-2, 2) node (a2t2) {$-2$};
+\draw (0, 2) node (a2t3) {$-1$};
+\draw (2, 2) node (a2t4) {$0$};
+
+\draw (-4, 0) node (a3t1) {$\infty$};
+\draw (-2, 0) node (a3t2) {$\infty$};
+\draw (0, 0) node (a3t3) {$\infty$};
+\draw (2, 0) node (a3t4) {$\infty$};
+
+\node[draw=diff1, fit= (a1t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a3t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a3t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+
+---
+
+# Dynamic TWFE
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Dynamic specification - contaminated 2x2s"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Relative Times};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$-2$};
+\draw (-2, 4) node (a1t2) {$-1$};
+\draw (0, 4) node (a1t3) {$0$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$-3$};
+\draw (-2, 2) node (a2t2) {$-2$};
+\draw (0, 2) node (a2t3) {$-1$};
+\draw (2, 2) node (a2t4) {$0$};
+
+\draw (-4, 0) node (a3t1) {$\infty$};
+\draw (-2, 0) node (a3t2) {$\infty$};
+\draw (0, 0) node (a3t3) {$\infty$};
+\draw (2, 0) node (a3t4) {$\infty$};
+
+\node[draw=diff1, fit= (a1t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a2t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a1t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# Dynamic TWFE
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="Dynamic specification - (some) de-contamination"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Relative Times};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$-2$};
+\draw (-2, 4) node (a1t2) {$-1$};
+\draw (0, 4) node (a1t3) {$0$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$-3$};
+\draw (-2, 2) node (a2t2) {$-2$};
+\draw (0, 2) node (a2t3) {$-1$};
+\draw (2, 2) node (a2t4) {$0$};
+
+\draw (-4, 0) node (a3t1) {$\infty$};
+\draw (-2, 0) node (a3t2) {$\infty$};
+\draw (0, 0) node (a3t3) {$\infty$};
+\draw (2, 0) node (a3t4) {$\infty$};
+
+\node[draw=diff1, fit= (a2t4), inner sep = .5ex, line width=1.5, dashed] (treat) {};
+\node[draw=diff2, fit= (a3t4), inner sep = .5ex, line width=1.5, dashed] (firstdiff) {};
+\node[draw=diff4, fit=  (a2t2), inner sep = .5ex, line width=1.5, dashed] (seconddiff) {};
+\node[draw=diff3, fit=  (a3t2), inner sep = .5ex, line width=1.5, dashed] (thirddiff) {};
+
+\end{tikzpicture}
+ 
+```
+]
+
+---
+
+# Example: Paglayan (2019, AJPS)
+
+- Let's fit the **dynamic** specification on the Paglyan (2019) dataset.
+```{r}
+# Keep all
+union_rep2 <- union
+union_rep2 <- union_rep2 %>% mutate(yearFromCB = year - YearCBrequired)
+
+# Make the never-treateds "infinity" (ensure that their dummy will be dropped as well)
+union_rep2$yearFromCB[is.na(union_rep2$YearCBrequired)] <- Inf
+
+# Make the dummy variables using the factor syntax - make -1 the reference period
+union_rep2$yearFromCBFactor <- relevel(as.factor(union_rep2$yearFromCB), ref="-1")
+```
+
+---
+
+# Example: Paglayan (2019, AJPS)
+
+```{r, message=F, warning=F}
+
+### Student-teacher ratio
+dyn_reg_rep2_1 <- lm_robust(studteachratio ~ yearFromCBFactor, 
+                            fixed_effects = ~ as.factor(year) + as.factor(State),  
+                            data=union_rep2, cluster=State)
+
+### Make this into a plot
+dyn_plot_rep2_1 <- tidy(dyn_reg_rep2_1) %>% filter(!is.na(estimate)) %>% mutate(period = as.numeric(str_remove(term, fixed("yearFromCBFactor")))) %>% 
+  select(period, estimate, conf.low, conf.high) %>% bind_rows(data.frame(period = -1, estimate = 0, conf.low=0, conf.high=0))
+
+rep2_1 <- dyn_plot_rep2_1  %>% filter(period >= -6&period<=10) %>% ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) +  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) + geom_errorbar(width=.2, col="darkgrey") + geom_point(size=2.5) +
+  xlab("Years relative to mandatory collective bargaining law") + ylab("Difference (Treated - Control)")  + scale_x_continuous(breaks=seq(-6, 10, by=1)) + scale_y_continuous(limits=c(-1.5,1.5)) +
+  theme_bw() + ggtitle("Student-teacher ratio")
+```
+
+---
+
+# Example: Paglayan (2019, AJPS)
+
+```{r, echo=F, message=F, warning=F, fig.align="center", fig.width=10}
+rep2_1
+```
+
+---
+
+# Example: Paglayan (2019, AJPS)
+
+- Compare with Callaway/Sant'anna
+
+```{r, warning=F, message=F}
+library(did)
+union_rep2$YearCBrequired[is.na(union_rep2$YearCBrequired)] <- 0
+dyn_reg_cs_1 <- att_gt(yname = "studteachratio", tname="year", idname="Stateid", 
+                       gname="YearCBrequired", xformla = ~1, 
+                       base_period = "universal", control_group = "notyettreated",
+                       cband = F,
+                        allow_unbalanced_panel = T, data=union_rep2)
+
+dyn_reg_cs_1_agg <- aggte(dyn_reg_cs_1, type="dynamic", na.rm = T)
+
+dyn_plot_cs_1 <- tidy(dyn_reg_cs_1_agg) %>% 
+    filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove_all(term, ("ATT\\(|\\)")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+
+dyn_plot_cs_1[dyn_plot_cs_1$period == -1,]$conf.low <- 0
+dyn_plot_cs_1[dyn_plot_cs_1$period == -1,]$conf.high <- 0
+
+cs_1 <- dyn_plot_cs_1  %>% filter(period >= -6&period<=10) %>% ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) +  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) + geom_errorbar(width=.2, col="darkgrey") + geom_point(size=2.5) +
+  xlab("Years relative to mandatory collective bargaining law") + ylab("Difference (Treated - Control)")  + scale_x_continuous(breaks=seq(-6, 10, by=1)) + scale_y_continuous(limits=c(-1.5,1.5)) +
+  theme_bw() + ggtitle("Student-teacher ratio")
+```
+
+---
+
+# Example: Paglayan (2019, AJPS)
+
+```{r, message=F, warning=F, echo=F, fig.align="center", fig.width=10}
+cs_1
+```
+
+---
+
+# DiD with staggered adoption
+
+.center2[
+```{tikz, echo=F, fig.align="center", dpi=144, fig.cap="DiD with 4 periods, 3 timing groups"}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.misc}
+\usetikzlibrary{shapes.symbols}
+\usetikzlibrary{shadows}
+\usetikzlibrary{fit}
+\definecolor{diff1}{RGB}{230,159,0}
+\definecolor{diff2}{RGB}{86,180,233}
+\definecolor{diff3}{RGB}{0,158,115}
+\definecolor{diff4}{RGB}{240,228,66}
+\begin{tikzpicture}[scale=.4]
+\draw (-6, 6) node (l0) {Unit};
+\draw (-6, 4) node (l1) {$1$};
+\draw (-6, 2) node (l2) {$2$};
+\draw (-6, 0) node (l2) {$3$};
+
+\draw (-1, 7.5) node (t0) {Time};
+\draw (-4, 6) node (t1) {$1$};
+\draw (-2, 6) node (t2) {$2$};
+\draw (0, 6) node (t3) {$3$};
+\draw (2, 6) node (t4) {$4$};
+
+\draw (-5, 7) -- (-5, -1);
+\draw (-7, 5) -- (3, 5);
+
+\draw (-4, 4) node (a1t1) {$0$};
+\draw (-2, 4) node (a1t2) {$0$};
+\draw (0, 4) node (a1t3) {$1$};
+\draw (2, 4) node (a1t4) {$1$};
+
+\draw (-4, 2) node (a2t1) {$0$};
+\draw (-2, 2) node (a2t2) {$0$};
+\draw (0, 2) node (a2t3) {$0$};
+\draw (2, 2) node (a2t4) {$1$};
+
+\draw (-4, 0) node (a3t1) {$0$};
+\draw (-2, 0) node (a3t2) {$0$};
+\draw (0, 0) node (a3t3) {$0$};
+\draw (2, 0) node (a3t4) {$0$};
+
+\node[draw=black, fit=(a1t1)  (a1t2) (a1t3) (a1t4), inner sep=.2ex, line width = 1.5, dashed] (cohort1) {};
+\node[draw=red, fit=(a2t1)  (a2t2) (a2t3) (a2t4), inner sep=.2ex, line width = 1.5, dashed] (cohort2) {};
+
+\end{tikzpicture}
+ 
+```
+]
 
 ---
 
@@ -754,10 +1706,15 @@ $$\hat{\tau} = \frac{\sum_{i,t} (D_{it} - \hat{D_{it}}) Y_{it}}{\sum_{i,t}(D_{it
   - Straightforward non-parametric estimator - can weight + use regression if parallel trends holds conditionally
 --
 
+- Diff-in-diff with multiple periods, two treatment groups
+  - No changes! Everything is fine - TWFE still gives you a difference-in-difference under no effect homogeneity assumptions
+  - Use pre-trends tests as a diagnostic, but be careful (w/ small samples, low power to violations)
+--
+
 - Diff-in-diff with staggered adoption
   - Can break down into a bunch of 2x2 DiDs for different treatment *groups* and *time* periods
-  - But beware of naive 2-way fixed effects - "bad" differences
-  - **Suggestion**: Imputation estimators - fit a model in the controls
+  - But beware of naive 2-way fixed effects, both **static** and **dynamic** specifications - "bad" 2x2s if effects aren't constant
+  - **Suggestion**: Imputation estimators - fit a model in the controls, predict to the treateds
 --
 
 - Diff-in-diff w/ arbitrary treatment histories
