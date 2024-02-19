@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Zikai Li">
+<meta name="dcterms.date" content="2024-02-15">
+
+<title>PLSC 30600 Lab 7</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="lab7_files/libs/clipboard/clipboard.min.js"></script>
+<script src="lab7_files/libs/quarto-html/quarto.js"></script>
+<script src="lab7_files/libs/quarto-html/popper.min.js"></script>
+<script src="lab7_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="lab7_files/libs/quarto-html/anchor.min.js"></script>
+<link href="lab7_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="lab7_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="lab7_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="lab7_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="lab7_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+</head><body class="fullcontent">\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{amssymb}
+
+
+
+
+
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">PLSC 30600 Lab 7</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Zikai Li </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">February 15, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="description-of-paper" class="level1">
+<h1>Description of paper</h1>
+<p>Grumbach and Hill (2022) looks at how same day registration (SDR) laws affect turnout for different kinds of voters. It analyzes the effect of these laws on voter turnout in presidential and nonpresidential elections. The key outcome variable is voter turnout. The authors conduct subgroup analysis for different age groups.</p>
+<p>The full citation is</p>
+<blockquote class="blockquote">
+<p>Grumbach, Jacob M., and Charlotte Hill. “Rock the registration: Same day registration increases turnout of young voters.” Journal of Politics 84.1 (2022): 405-417.</p>
+</blockquote>
+<p>More details on the replication: &gt; Li, Zikai, and Anton Strezhnev. “A Guide to Event Study Plots for Political Scientists.” <em>Working Paper</em> (2024).</p>
+<table class="table">
+<tbody>
+<tr class="odd">
+<td>Unit</td>
+<td>Individual (primary)</td>
+</tr>
+<tr class="even">
+<td>Time</td>
+<td>Year</td>
+</tr>
+<tr class="odd">
+<td>Type of design</td>
+<td>Staggered rollout</td>
+</tr>
+<tr class="even">
+<td>Replicated Figure(s)</td>
+<td>Figures A2</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="data-description-and-pre-processing" class="level1">
+<h1>Data description and pre-processing</h1>
+<p>The relevant variables are:</p>
+<ul>
+<li><code>year</code> - Year</li>
+<li><code>state</code> - State</li>
+<li><code>voted</code> - Whether an individual voted in a given year</li>
+<li><code>sdr</code> - Whether the state has same-day registration law; treatment indicator</li>
+<li><code>presidential_year</code> - Whether there is a presidential election</li>
+<li><code>age_group</code> - Age group of the individual</li>
+</ul>
+</section>
+<section id="treatment-visualization" class="level1">
+<h1>Treatment visualization</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pdf("PanelView - SDR (new).pdf", h=7, w=12)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>cps <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"cps.csv"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"data.csv"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>paneldata <span class="ot">&lt;-</span> data[data<span class="sc">$</span>year<span class="sc">&gt;=</span><span class="dv">1978</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">c</span>(<span class="st">"st"</span>,<span class="st">"year"</span>,<span class="st">"sdr"</span>,<span class="st">"early_voting_narrow"</span>,<span class="st">"early_voting_broad"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"early_voting_person"</span>, <span class="st">"pop_annual"</span>)]</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>paneldata<span class="sc">$</span>st <span class="ot">&lt;-</span> <span class="fu">as.character</span>(paneldata<span class="sc">$</span>st)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">panelview</span>(<span class="at">D=</span><span class="st">"sdr"</span>, </span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">data=</span>data,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>          <span class="co">#D="sdr",</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>          <span class="co">#by.timing = T,</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>          <span class="at">pre.post =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>          <span class="co">#data=paneldata,</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>          <span class="at">index=</span><span class="fu">c</span>(<span class="st">"st"</span>,<span class="st">"year"</span>),</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>          <span class="at">xlab=</span><span class="st">"Year"</span>,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>          <span class="at">ylab=</span><span class="st">"State"</span>,</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>          <span class="at">main=</span><span class="st">"SDR"</span>,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.adjust=</span>T, </span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.labs =</span> <span class="fu">c</span>(<span class="st">"Control Observations"</span>, <span class="st">"Treated Observations"</span>),</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>          <span class="at">color=</span><span class="fu">c</span>(<span class="st">"white"</span>,<span class="st">"black"</span>),</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>          <span class="at">theme.bw =</span> T)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="exact-replication" class="level1">
+<h1>Exact replication</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="do">### From original replication code</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(voted <span class="sc">~</span> state <span class="sc">+</span> year <span class="sc">+</span> sdr <span class="sc">+</span> presidential_year <span class="sc">+</span> </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                           age_group, cps, mean, <span class="at">na.rm=</span>T)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> agg_cps_age[<span class="fu">order</span>(agg_cps_age<span class="sc">$</span>state, agg_cps_age<span class="sc">$</span>year),]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>firstyears <span class="ot">&lt;-</span> <span class="fu">do.call</span>(<span class="st">"rbind"</span>, <span class="fu">as.list</span>(<span class="fu">by</span>(agg_cps_age[agg_cps_age<span class="sc">$</span>sdr<span class="sc">==</span><span class="dv">1</span>,],</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                                          agg_cps_age<span class="sc">$</span>state[agg_cps_age<span class="sc">$</span>sdr<span class="sc">==</span><span class="dv">1</span>],</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>                                          head, <span class="at">n=</span><span class="dv">1</span>)))</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>firstyears<span class="sc">$</span>yearSDR <span class="ot">&lt;-</span> firstyears<span class="sc">$</span>year</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> <span class="fu">join</span>(agg_cps_age, firstyears[,<span class="fu">c</span>(<span class="st">"state"</span>, <span class="st">"yearSDR"</span>)])</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Make a variable for how many years away a unit is from its treatment time </span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># (0 is the time of treatment initiation, -1 is the time *just* before treatment)</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> agg_cps_age <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">yearFromSDR =</span> year <span class="sc">-</span> yearSDR)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co"># ever-treated variable</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>ever_treated[<span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>ever_treated[<span class="sc">!</span><span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="co"># all never-treateds' yearFromSDR get assigned '0' </span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>yearFromSDR[<span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>cps_exact <span class="ot">&lt;-</span> <span class="fu">join</span>(cps, agg_cps_age[agg_cps_age<span class="sc">$</span>age_group<span class="sc">==</span><span class="st">"18-24"</span>,</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>                                   <span class="fu">c</span>(<span class="st">"state"</span>, <span class="st">"year"</span>, <span class="st">"yearFromSDR"</span>, </span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>                                     <span class="st">"ever_treated"</span>, <span class="st">"yearSDR"</span>)])</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span>yearFromSDR <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDR)</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the dummy variables using the factor syntax - make -2 the reference period</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="ot">&lt;-</span> <span class="fu">relevel</span>(<span class="fu">as.factor</span>(cps_exact<span class="sc">$</span>yearFromSDR), <span class="at">ref=</span><span class="st">"-2"</span>)</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the dummy variables manually</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-16'</span>)</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-14'</span>)</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-12'</span>)</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-10</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-10'</span>)</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-8</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-8'</span>)</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-6'</span>)</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-4</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-4'</span>)</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat-2</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-2'</span>)</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat0</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'0'</span>)</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat2</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'2'</span>)</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat4</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'4'</span>)</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'6'</span>)</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'8'</span>)</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'10'</span>)</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'12'</span>)</span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat14</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'14'</span>)</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span><span class="st">`</span><span class="at">treat16</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'16'</span>)</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span>include <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_exact<span class="sc">$</span>yearFromSDR <span class="sc">&lt;=</span><span class="dv">16</span> <span class="sc">&amp;</span> </span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>                                  cps_exact<span class="sc">$</span>yearFromSDR <span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>))</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a><span class="co"># Code those with NAs in yearSDR as not having SDR</span></span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>cps_exact<span class="sc">$</span>yearSDR_did <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(cps_exact<span class="sc">$</span>yearSDR), <span class="dv">0</span>, cps_exact<span class="sc">$</span>yearSDR)</span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>“Bivariate” results (This outputs an exact replication of Figure A2 in original paper)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># By age-group</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>age_group_levels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"18-24"</span>, <span class="st">"25-34"</span>, <span class="st">"35-44"</span>, <span class="st">"45-54"</span>, <span class="st">"55-64"</span>, <span class="st">"65+"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Store results for each age group</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>age_group_results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># For each age group</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Fit a regression to get the per-period tests</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  dyn_reg_1 <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(voted <span class="sc">~</span> <span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat-10</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-8</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-4</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat0</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat2</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat4</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="sc">+</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat14</span><span class="st">`</span>  <span class="sc">+</span> </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat16</span><span class="st">`</span> , <span class="at">fixed_effects =</span> <span class="sc">~</span> <span class="fu">as.factor</span>(year) <span class="sc">+</span> </span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">as.factor</span>(state), <span class="at">data=</span>cps_exact[</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>                             cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level <span class="sc">&amp;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>                               (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>                                  cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>) <span class="sc">&amp;</span> </span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>                               <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),])</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Original paper clustered wrong, so don't do CRSEs</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_1) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove</span>(term, <span class="fu">fixed</span>(<span class="st">"treat"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_1, <span class="fu">data.frame</span>(<span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>                                             <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Append age_group_results</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_1</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>exact_1 <span class="ot">&lt;-</span> dyn_plot_combined <span class="sc">%&gt;%</span> </span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span> </span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>), <span class="at">limits=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">1</span>,.<span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(exact_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid" width="768"></p>
+</div>
+</div>
+</section>
+<section id="corrected-replications" class="level1">
+<h1>Corrected replications</h1>
+<section id="replication-1-the-replication-figure-we-use-in-our-paper" class="level2">
+<h2 class="anchored" data-anchor-id="replication-1-the-replication-figure-we-use-in-our-paper">Replication 1 (The replication figure we use in our paper)</h2>
+<p>Changes: - Clustered the SEs (the original paper’s code contained a typo for clustered standard errors, which we correct here)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># By age-group</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>age_group_levels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"18-24"</span>, <span class="st">"25-34"</span>, <span class="st">"35-44"</span>, <span class="st">"45-54"</span>, <span class="st">"55-64"</span>, <span class="st">"65+"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Store results for each age group</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>age_group_results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># For each age group</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Fit a regression to get the per-period tests</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  dyn_reg_1 <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(voted <span class="sc">~</span> <span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat-10</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-8</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-4</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat0</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat2</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat4</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="sc">+</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat14</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                           <span class="st">`</span><span class="at">treat16</span><span class="st">`</span>, </span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>                         <span class="at">fixed_effects =</span> </span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>                           <span class="sc">~</span> <span class="fu">as.factor</span>(year) <span class="sc">+</span> <span class="fu">as.factor</span>(state), </span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>                         <span class="at">data=</span>cps_exact[</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                             cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level <span class="sc">&amp;</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>                               (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>                                  cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>)<span class="sc">&amp;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>                               <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),], </span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>                         <span class="at">clusters=</span>state, <span class="at">se_type=</span><span class="st">"stata"</span>)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="co">#print(dyn_reg_1)</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_1) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove</span>(term, <span class="fu">fixed</span>(<span class="st">"treat"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_1, <span class="fu">data.frame</span>(<span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>                                             <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>  dyn_plot_1<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_1</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>replication_1 <span class="ot">&lt;-</span> dyn_plot_combined <span class="sc">%&gt;%</span> </span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,<span class="sc">-</span>.<span class="dv">15</span>, <span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>,<span class="fl">0.15</span>, <span class="fl">0.2</span>), </span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>                     <span class="at">limits=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,.<span class="dv">2</span>)) <span class="sc">+</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(replication_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid" width="768"></p>
+</div>
+</div>
+</section>
+<section id="replication-2-first-extension" class="level2">
+<h2 class="anchored" data-anchor-id="replication-2-first-extension">Replication 2 (First extension)</h2>
+<p>Changes - Clustered the SEs - Dropped the always-treated groups - Correctly re-coded the never-treated groups</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="do">### From original replication code</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(voted <span class="sc">~</span> state <span class="sc">+</span> year <span class="sc">+</span> sdr <span class="sc">+</span> presidential_year <span class="sc">+</span> age_group, </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                         cps, mean, <span class="at">na.rm=</span>T)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> agg_cps_age[<span class="fu">order</span>(agg_cps_age<span class="sc">$</span>state, agg_cps_age<span class="sc">$</span>year),]</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>firstyears <span class="ot">&lt;-</span> <span class="fu">do.call</span>(<span class="st">"rbind"</span>, <span class="fu">as.list</span>(<span class="fu">by</span>(agg_cps_age[agg_cps_age<span class="sc">$</span>sdr<span class="sc">==</span><span class="dv">1</span>,],</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                                          agg_cps_age<span class="sc">$</span>state[agg_cps_age<span class="sc">$</span>sdr<span class="sc">==</span><span class="dv">1</span>],</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                                          head, <span class="at">n=</span><span class="dv">1</span>)))</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>firstyears<span class="sc">$</span>yearSDR <span class="ot">&lt;-</span> firstyears<span class="sc">$</span>year</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> <span class="fu">join</span>(agg_cps_age, firstyears[,<span class="fu">c</span>(<span class="st">"state"</span>, <span class="st">"yearSDR"</span>)])</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Make a variable for how many years away a unit is from its treatment time </span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co"># (0 is the time of treatment initiation, -1 is the time *just* before treatment)</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>agg_cps_age <span class="ot">&lt;-</span> agg_cps_age <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">yearFromSDR =</span> year <span class="sc">-</span> yearSDR)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="co"># ever-treated variable</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>ever_treated[<span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>ever_treated[<span class="sc">!</span><span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="co"># all never-treateds' yearFromSDR get assigned '0' </span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>yearFromSDR[<span class="fu">is.na</span>(agg_cps_age<span class="sc">$</span>yearFromSDR)] <span class="ot">&lt;-</span> <span class="cn">Inf</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Which ones are always treated</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>always_treated <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>always_treated[agg_cps_age<span class="sc">$</span>yearSDR <span class="sc">==</span> <span class="dv">1978</span>] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Ohio reverses</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>reversed <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>agg_cps_age<span class="sc">$</span>reversed[agg_cps_age<span class="sc">$</span>state <span class="sc">==</span> <span class="st">"Ohio"</span>] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>cps_rep2 <span class="ot">&lt;-</span> <span class="fu">join</span>(cps, agg_cps_age[agg_cps_age<span class="sc">$</span>age_group<span class="sc">==</span><span class="st">"18-24"</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                                  <span class="fu">c</span>(<span class="st">"state"</span>, <span class="st">"year"</span>, <span class="st">"yearFromSDR"</span>, </span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"ever_treated"</span>, <span class="st">"always_treated"</span>, </span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"reversed"</span>)])</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span>yearFromSDR <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDR)</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the dummy variables using the factor syntax - make -2 the reference period</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="ot">&lt;-</span> <span class="fu">relevel</span>(<span class="fu">as.factor</span>(cps_rep2<span class="sc">$</span>yearFromSDR), <span class="at">ref=</span><span class="st">"-2"</span>)</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-16'</span>)</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-14'</span>)</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-12'</span>)</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-10</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-10'</span>)</span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-8</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-8'</span>)</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-6'</span>)</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-4</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-4'</span>)</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat-2</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'-2'</span>)</span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat0</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'0'</span>)</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat2</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'2'</span>)</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat4</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'4'</span>)</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'6'</span>)</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'8'</span>)</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'10'</span>)</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'12'</span>)</span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat14</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'14'</span>)</span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span><span class="st">`</span><span class="at">treat16</span><span class="st">`</span> <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">'16'</span>)</span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a><span class="co"># Create indicator for inclusion in the regression</span></span>
+<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a>cps_rep2<span class="sc">$</span>include <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(cps_rep2<span class="sc">$</span>yearFromSDR <span class="sc">&lt;=</span><span class="dv">16</span> <span class="sc">&amp;</span> </span>
+<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a>                                 cps_rep2<span class="sc">$</span>yearFromSDR <span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span> </span>
+<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a>                                 cps_rep2<span class="sc">$</span>always_treated <span class="sc">==</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="coefficient-plot" class="level1">
+<h1>Coefficient plot</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># By age-group</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>age_group_levels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"18-24"</span>, <span class="st">"25-34"</span>, <span class="st">"35-44"</span>, <span class="st">"45-54"</span>, <span class="st">"55-64"</span>, <span class="st">"65+"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Store results for each age group</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>age_group_results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># For each age group</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Fit a regression to get the per-period tests</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  dyn_reg_rep2 <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(voted <span class="sc">~</span> <span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat-10</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-8</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-4</span><span class="st">`</span> <span class="sc">+</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat0</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat2</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat4</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="sc">+</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat14</span><span class="st">`</span>  <span class="sc">+</span> </span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat16</span><span class="st">`</span> , </span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>                         <span class="at">fixed_effects =</span> <span class="sc">~</span> <span class="fu">as.factor</span>(year) <span class="sc">+</span> <span class="fu">as.factor</span>(state),</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>                         <span class="at">data=</span>cps_exact[</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>                           cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level <span class="sc">&amp;</span> </span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>                             (cps_rep2<span class="sc">$</span>include <span class="sc">==</span> <span class="dv">1</span><span class="sc">|</span> </span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>                                cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">"Inf"</span>) <span class="sc">&amp;</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>                             (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>                                cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>) <span class="sc">&amp;</span> </span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>                             <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),], </span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>                         <span class="at">clusters=</span>state, <span class="at">se_type=</span><span class="st">"stata"</span>)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="co">#print(dyn_reg_rep2)</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  dyn_plot_2 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_rep2) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove</span>(term, <span class="fu">fixed</span>(<span class="st">"treat"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  dyn_plot_2 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_2, <span class="fu">data.frame</span>(<span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>                                             <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>  dyn_plot_2<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_2</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>replication_2 <span class="ot">&lt;-</span> dyn_plot_combined <span class="sc">%&gt;%</span> </span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span> </span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,<span class="sc">-</span>.<span class="dv">15</span>, <span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>,<span class="fl">0.15</span>, <span class="fl">0.2</span>), </span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>                     <span class="at">limits=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,.<span class="dv">2</span>)) <span class="sc">+</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(replication_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Drop those treated super-late</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># By age-group</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>age_group_levels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"18-24"</span>, <span class="st">"25-34"</span>, <span class="st">"35-44"</span>, <span class="st">"45-54"</span>, <span class="st">"55-64"</span>, <span class="st">"65+"</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Store results for each age group</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>age_group_results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># For each age group</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Fit a regression to get the per-period tests</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  dyn_reg_rep3 <span class="ot">&lt;-</span> <span class="fu">lm_robust</span>(voted <span class="sc">~</span> <span class="st">`</span><span class="at">treat-16</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-14</span><span class="st">`</span> <span class="sc">+</span>  <span class="st">`</span><span class="at">treat-12</span><span class="st">`</span> <span class="sc">+</span>  </span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat-10</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-8</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat-6</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat-4</span><span class="st">`</span><span class="sc">+</span> </span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat0</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat2</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat4</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat6</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat8</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">treat10</span><span class="st">`</span> <span class="sc">+</span><span class="st">`</span><span class="at">treat12</span><span class="st">`</span>  <span class="sc">+</span> <span class="st">`</span><span class="at">treat14</span><span class="st">`</span>  <span class="sc">+</span> </span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>                              <span class="st">`</span><span class="at">treat16</span><span class="st">`</span> , </span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>                         <span class="at">fixed_effects =</span> <span class="sc">~</span> <span class="fu">as.factor</span>(year) <span class="sc">+</span> <span class="fu">as.factor</span>(state),</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>                         <span class="at">data=</span>cps_exact[</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>                           cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level<span class="sc">&amp;</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>                             (cps_rep2<span class="sc">$</span>include <span class="sc">==</span> <span class="dv">1</span><span class="sc">|</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>                                cps_rep2<span class="sc">$</span>yearFromSDRFactor <span class="sc">==</span> <span class="st">"Inf"</span>) <span class="sc">&amp;</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>                             (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>                                cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>) <span class="sc">&amp;</span> </span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>                             <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),] <span class="sc">%&gt;%</span> </span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">filter</span>(<span class="sc">!</span>(st <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"UT"</span>, <span class="st">"HI"</span>, <span class="st">"VT"</span>))), </span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>                         <span class="at">clusters=</span>state, <span class="at">se_type=</span><span class="st">"stata"</span>)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  <span class="co">#print(dyn_reg_rep3)</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>  dyn_plot_3 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_rep3) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove</span>(term, <span class="fu">fixed</span>(<span class="st">"treat"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>  dyn_plot_3 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_3, <span class="fu">data.frame</span>(</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>  dyn_plot_3<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_3</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>replication_3 <span class="ot">&lt;-</span> dyn_plot_combined <span class="sc">%&gt;%</span> </span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span> </span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,<span class="sc">-</span>.<span class="dv">15</span>, <span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>,<span class="fl">0.15</span>, <span class="fl">0.2</span>), </span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>                     <span class="at">limits=</span><span class="fu">c</span>(<span class="sc">-</span>.<span class="dv">2</span>,.<span class="dv">2</span>)) <span class="sc">+</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(replication_3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<section id="corrected-replication-using-cs-did-estimator" class="level3">
+<h3 class="anchored" data-anchor-id="corrected-replication-using-cs-did-estimator">corrected replication using CS did estimator</h3>
+<ul>
+<li>Control group: never treated and yet-to-be-treated</li>
+<li>Base period (placebo): universal (set to -1)</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="do">######did correct spec#####</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Use att_gt from did to retrieve ATTs</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  dyn_reg_rep_did2 <span class="ot">&lt;-</span> <span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"voted"</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>                        <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>                        <span class="at">idname =</span> <span class="st">"statefip"</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                        <span class="at">gname =</span> <span class="st">"yearSDR_did"</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>                        <span class="at">xformla =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>                        <span class="at">base_period =</span> <span class="st">"universal"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                        <span class="at">control_group =</span> <span class="fu">c</span>(<span class="st">"nevertreated"</span>, <span class="st">"notyettreated"</span>),</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>                        <span class="at">allow_unbalanced_panel =</span> T,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>                        <span class="at">cband =</span> F,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">data=</span>cps_exact[cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level<span class="sc">&amp;</span> </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>                        (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>                           cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>)<span class="sc">&amp;</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                        <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),])</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>dyn_reg_rep_did2 <span class="ot">&lt;-</span> <span class="fu">aggte</span>(dyn_reg_rep_did2, <span class="at">type=</span><span class="st">"dynamic"</span>, <span class="at">na.rm =</span> T)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  <span class="co">#print(dyn_reg_rep_did2)</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did2 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_rep_did2) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove_all</span>(term, (<span class="st">"ATT</span><span class="sc">\\</span><span class="st">(|</span><span class="sc">\\</span><span class="st">)"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did2 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_did2, <span class="fu">data.frame</span>(<span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>                                                   <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did2<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_did2</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined_did2 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>replication_did2 <span class="ot">&lt;-</span> dyn_plot_combined_did2 <span class="sc">%&gt;%</span> </span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span> </span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="sc">-</span>.<span class="dv">15</span>, <span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>,<span class="fl">0.15</span>, <span class="fl">0.2</span>)) <span class="sc">+</span></span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(replication_did2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="corrected-replication-using-cs-did-estimator-1" class="level3">
+<h3 class="anchored" data-anchor-id="corrected-replication-using-cs-did-estimator-1">Corrected replication using CS did estimator</h3>
+<ul>
+<li>Control group: never treated and yet-to-be-treated</li>
+<li>Base period (placebo): varying (one period before the estimated period)</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="do">######did correct spec#####</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (group_level <span class="cf">in</span> age_group_levels){</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Fit a regression to get the per-period tests</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>dyn_reg_rep_did3 <span class="ot">&lt;-</span> <span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"voted"</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>                        <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>                        <span class="at">idname =</span> <span class="st">"statefip"</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>                        <span class="at">gname =</span> <span class="st">"yearSDR_did"</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>                        <span class="at">xformla =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>                        <span class="at">base_period =</span> <span class="st">"varying"</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>                        <span class="at">control_group =</span> <span class="fu">c</span>(<span class="st">"nevertreated"</span>, <span class="st">"notyettreated"</span>),,</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>                        <span class="at">allow_unbalanced_panel =</span> T,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>                        <span class="at">cband =</span> F,</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data=</span>cps_exact[</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>                          cps_exact<span class="sc">$</span>age_group<span class="sc">==</span>group_level<span class="sc">&amp;</span> </span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>                            (cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&gt;=</span>(<span class="sc">-</span><span class="dv">16</span>) <span class="sc">&amp;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>                               cps_exact<span class="sc">$</span>yearFromSDR<span class="sc">&lt;=</span><span class="dv">16</span>)<span class="sc">&amp;</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>                            <span class="sc">!</span><span class="fu">is.na</span>(cps_exact<span class="sc">$</span>voted),])</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>dyn_reg_rep_did3 <span class="ot">&lt;-</span> <span class="fu">aggte</span>(dyn_reg_rep_did3, <span class="at">type=</span><span class="st">"dynamic"</span>, <span class="at">na.rm =</span> T)</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  <span class="co">#print(dyn_reg_rep_did3)</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make into a plotting set</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did3 <span class="ot">&lt;-</span> <span class="fu">tidy</span>(dyn_reg_rep_did3) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(estimate)) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">term =</span> <span class="fu">str_remove_all</span>(term, <span class="st">"`"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">period =</span> <span class="fu">as.numeric</span>(<span class="fu">str_remove_all</span>(term, (<span class="st">"ATT</span><span class="sc">\\</span><span class="st">(|</span><span class="sc">\\</span><span class="st">)"</span>)))) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(period, estimate, conf.low, conf.high)</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tack on the baseline</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did3 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(dyn_plot_did3, <span class="fu">data.frame</span>(</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">period =</span> <span class="sc">-</span><span class="dv">2</span>, <span class="at">estimate =</span> <span class="dv">0</span>, <span class="at">conf.low =</span> <span class="cn">NA</span>, <span class="at">conf.high =</span> <span class="cn">NA</span>))</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Label the age_group</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>  dyn_plot_did3<span class="sc">$</span>age_group <span class="ot">&lt;-</span> group_level</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>  age_group_results[[group_level]] <span class="ot">&lt;-</span> dyn_plot_did3</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>dyn_plot_combined_did3 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(age_group_results)</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficient plot</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>replication_did3 <span class="ot">&lt;-</span> dyn_plot_combined_did3 <span class="sc">%&gt;%</span> </span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.numeric</span>(period), <span class="at">y =</span> estimate, <span class="at">ymin=</span>conf.low, <span class="at">ymax=</span>conf.high)) <span class="sc">+</span> </span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">fill=</span><span class="st">"grey80"</span>) <span class="sc">+</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>age_group) <span class="sc">+</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="sc">-</span><span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">lty=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="st">"Years Until SDR Implementation"</span>) <span class="sc">+</span> <span class="fu">ylab</span>(<span class="st">"Treatment Effect"</span>)  <span class="sc">+</span> </span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">16</span>,<span class="sc">-</span><span class="dv">12</span>,<span class="sc">-</span><span class="dv">8</span>,<span class="sc">-</span><span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">4</span>,<span class="dv">8</span>,<span class="dv">12</span>,<span class="dv">16</span>)) <span class="sc">+</span></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">breaks=</span><span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="sc">-</span>.<span class="dv">15</span>, <span class="sc">-</span><span class="fl">0.1</span>,<span class="sc">-</span><span class="fl">0.05</span>,<span class="dv">0</span>,<span class="fl">0.05</span>,<span class="fl">0.1</span>,<span class="fl">0.15</span>, <span class="fl">0.2</span>)) <span class="sc">+</span></span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(replication_did3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="lab7_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

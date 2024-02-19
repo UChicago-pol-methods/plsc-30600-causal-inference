@@ -1,0 +1,801 @@
+---
+title: 'Replication: Grumbach and Hill (2022) JoP'
+author: ''
+date: "8/25/2023"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Required packages
+library(tidyverse)
+library(haven)
+library(plyr)
+
+# Quick regression
+library(estimatr)
+
+# Visualize distribution
+library(panelView)
+
+# CS DID 
+library(did)
+
+# Extras for plotting
+library(gridExtra)
+library(ggpubr)
+
+# Print options
+options(digits=3)
+
+```
+
+# Description of paper
+
+Grumbach and Hill (2022) looks at how same day registration (SDR) laws affect turnout for different kinds of voters. It analyzes the effect of these laws on voter turnout in presidential and nonpresidential elections. The key outcome variable is voter turnout. The authors conduct subgroup analysis for different age groups.  
+
+The full citation is
+
+> Grumbach, Jacob M., and Charlotte Hill. "Rock the registration: Same day registration increases turnout of young voters." The Journal of Politics 84.1 (2022): 405-417.
+
+|                       |                      |
+|-----------------------|----------------------|
+| Unit                  | Individual (primary) |
+| Time                  | Year                 |
+| Type of design        | Staggered rollout    |
+| Replicated Figure(s)  | Figures A2           |
+  
+# Data description and pre-processing
+  
+The relevant variables are:
+  
+- `year` - Year
+- `state` - State
+- `voted` - Whether an individual voted in a given year
+- `sdr` - Whether the state has same-day registration law; treatment indicator
+- `presidential_year` - Whether there is a presidential election
+- `age_group` - Age group of the individual
+
+
+
+Data-processing using replication code from original paper
+```{r, message=F, results='hide', warning=F, echo=T}
+# State FIPS codes
+fips_codes <- read_csv("fips_codes_website.csv")
+
+data <- readRDS("policy_data_updated.RDS")
+
+# Load New Early Voting Data
+ev <- read.csv("Early Voting Coding - Sheet1.csv")
+
+data$early_voting_narrow
+data$early_voting_broad
+
+data <- plyr::join(data, ev[,c("state","year_eip","year_amv","year_abs")])
+
+for(i in levels(factor(data$state))){
+
+  data$early_voting_person[data$state==i &
+                             (data$year>=data$year_eip) &
+                             data$year<=2014] <- 1
+
+  data$early_voting_narrow[data$state==i &
+                             (data$year>=data$year_eip|data$year>=data$year_amv) &
+                             data$year<=2014] <- 1
+  data$early_voting_broad[
+    data$state==i &(data$year>=data$year_eip|data$year>=data$year_amv|
+                      data$year>=data$year_abs) &
+      data$year<=2014] <- 1
+
+}
+
+data$early_voting_narrow[is.na(data$early_voting_narrow) & data$year<=2014] <- 0
+data$early_voting_broad[is.na(data$early_voting_broad) & data$year<=2014] <- 0
+data$early_voting_person[is.na(data$early_voting_person) & data$year<=2014] <- 0
+
+presidential_years <- c(1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016)
+
+cps <- read_csv("cps_00021.csv", col_types = cols(
+  .default = col_double()
+))
+names(cps) <- tolower((names(cps)))
+
+# Remove "refused to answer"
+cps$voted_alt <- cps$voted - 1
+cps$voted_alt[cps$voted_alt>1] <- NA
+
+# Recode dependent variable
+cps$voted[cps$voted==99] <- NA
+cps$voted <- cps$voted - 1
+cps$voted[cps$voted>1] <- 0
+
+# Recode covariates
+cps$faminc[cps$faminc>843] <- NA
+cps$faminc <- as.numeric(factor(cps$faminc))
+
+cps$sex[cps$sex>2] <- NA
+
+cps$educ[cps$educ==999|cps$educ==1] <- NA
+
+cps$educ <- as.numeric(factor(cps$educ))
+
+#merge state FIPS codes
+cps <- join(cps, fips_codes[,c("st","statefip")], match="first")
+
+#Merge state policy data
+cps <- join(cps, data, by=c("st","year")); gc()
+
+cps$age_group[cps$age<=24] <- "18-24"
+cps$age_group[cps$age>24 & cps$age<35] <- "25-34"
+cps$age_group[cps$age>34 & cps$age<45] <- "35-44"
+cps$age_group[cps$age>44 & cps$age<55] <- "45-54"
+cps$age_group[cps$age>54 & cps$age<65] <- "55-64"
+cps$age_group[cps$age>64] <- "65+"
+
+cps$presidential_year[cps$year %in% presidential_years] <- 1
+cps$presidential_year[(cps$year %in% presidential_years)==F] <- 0
+
+cps$sex[cps$sex==0] <- NA
+cps$sex <- cps$sex - 1
+
+cps$race_5[cps$race==100] <- "White"
+cps$race_5[cps$race==200] <- "Black"
+cps$race_5[cps$race==300 | cps$race>=700] <- "Other"
+cps$race_5[(cps$race>=600 & cps$race<700) | cps$race==809] <- "Asian"
+cps <- within(cps, race_5 <- relevel(factor(race_5), ref = "White"))
+cps <- cps[cps$year>=1978,]
+
+cps$asian[cps$race_5=="Asian"] <- 1
+cps$asian[cps$race_5!="Asian"] <- 0
+
+
+gc()
+
+# age_group dummy variables
+cps <- cbind(cps, data.frame(model.matrix(~ age_group - 1, data=cps)))
+
+# race dummy variables
+cps <- cbind(cps, data.frame(model.matrix(~ as.character(race) - 1, data=cps)))
+names(cps) <- gsub("as.character.", "", names(cps))
+
+# registration
+cps$reg_pollingplace[cps$voreghow<99 & cps$voreghow!=7] <- 0
+cps$reg_pollingplace[cps$voreghow<99 & cps$voreghow==7] <- 1
+
+cps$vote_reg[cps$voreg<=98 & cps$voreg!=2] <- 0
+cps$vote_reg[cps$voreg<=98 & cps$voreg==2] <- 1
+
+
+gc()
+
+# Drop those with duration of residence less than 1 year
+cps$movedless1yr[cps$voteres<14] <- 1
+cps$movedless1yr[cps$voteres>=14 & cps$voteres<900] <- 0
+
+# Remove DC
+cps <- cps[cps$st!="DC",]; gc()
+
+# Remove North Dakota since it gets dropped in all analyses b/c NA SDR
+# This step is not in the original paper's code but it doesn't change results
+cps <- cps[cps$st!="ND",]; gc()
+
+paneldata <- data[data$year>=1978,
+                  c("st","year","sdr","early_voting_narrow","early_voting_broad",
+                    "early_voting_person", "pop_annual")]
+paneldata$st <- as.character(paneldata$st)
+```
+
+
+# Treatment visualization
+
+```{r, message=F, warning=F, results='hide', fig.height=8, fig.width=7}
+# pdf("PanelView - SDR (new).pdf", h=7, w=12)
+panelview(D="sdr", 
+          data=data,
+          #D="sdr",
+          #by.timing = T,
+          pre.post = TRUE,
+          #data=paneldata,
+          index=c("st","year"),
+          xlab="Year",
+          ylab="State",
+          main="SDR",
+          axis.adjust=T, 
+          legend.labs = c("Control Observations", "Treated Observations"),
+          color=c("white","black"),
+          theme.bw = T)
+```
+
+# Exact replication
+
+```{r, warning=F, results="hide", message=F}
+
+### From original replication code
+agg_cps_age <- aggregate(voted ~ state + year + sdr + presidential_year + 
+                           age_group, cps, mean, na.rm=T)
+
+agg_cps_age <- agg_cps_age[order(agg_cps_age$state, agg_cps_age$year),]
+
+firstyears <- do.call("rbind", as.list(by(agg_cps_age[agg_cps_age$sdr==1,],
+                                          agg_cps_age$state[agg_cps_age$sdr==1],
+                                          head, n=1)))
+
+firstyears$yearSDR <- firstyears$year
+
+agg_cps_age <- join(agg_cps_age, firstyears[,c("state", "yearSDR")])
+
+
+# Make a variable for how many years away a unit is from its treatment time 
+# (0 is the time of treatment initiation, -1 is the time *just* before treatment)
+agg_cps_age <- agg_cps_age %>% mutate(yearFromSDR = year - yearSDR)
+
+
+# ever-treated variable
+agg_cps_age$ever_treated[is.na(agg_cps_age$yearFromSDR)] <- 0
+agg_cps_age$ever_treated[!is.na(agg_cps_age$yearFromSDR)] <- 1
+
+# all never-treateds' yearFromSDR get assigned '0' 
+agg_cps_age$yearFromSDR[is.na(agg_cps_age$yearFromSDR)] <- 0
+
+cps_exact <- join(cps, agg_cps_age[agg_cps_age$age_group=="18-24",
+                                   c("state", "year", "yearFromSDR", 
+                                     "ever_treated", "yearSDR")])
+gc()
+
+cps_exact$yearFromSDR <- as.numeric(cps_exact$yearFromSDR)
+
+# Make the dummy variables using the factor syntax - make -2 the reference period
+cps_exact$yearFromSDRFactor <- relevel(as.factor(cps_exact$yearFromSDR), ref="-2")
+
+
+# Make the dummy variables manually
+cps_exact$`treat-16` <- as.numeric(cps_exact$yearFromSDRFactor == '-16')
+
+cps_exact$`treat-14` <- as.numeric(cps_exact$yearFromSDRFactor == '-14')
+
+cps_exact$`treat-12` <- as.numeric(cps_exact$yearFromSDRFactor == '-12')
+
+cps_exact$`treat-10` <- as.numeric(cps_exact$yearFromSDRFactor == '-10')
+
+cps_exact$`treat-8` <- as.numeric(cps_exact$yearFromSDRFactor == '-8')
+
+cps_exact$`treat-6` <- as.numeric(cps_exact$yearFromSDRFactor == '-6')
+
+cps_exact$`treat-4` <- as.numeric(cps_exact$yearFromSDRFactor == '-4')
+
+cps_exact$`treat-2` <- as.numeric(cps_exact$yearFromSDRFactor == '-2')
+
+cps_exact$`treat0` <- as.numeric(cps_exact$yearFromSDRFactor == '0')
+
+cps_exact$`treat2` <- as.numeric(cps_exact$yearFromSDRFactor == '2')
+
+cps_exact$`treat4` <- as.numeric(cps_exact$yearFromSDRFactor == '4')
+
+cps_exact$`treat6` <- as.numeric(cps_exact$yearFromSDRFactor == '6')
+
+cps_exact$`treat8` <- as.numeric(cps_exact$yearFromSDRFactor == '8')
+
+cps_exact$`treat10` <- as.numeric(cps_exact$yearFromSDRFactor == '10')
+
+cps_exact$`treat12` <- as.numeric(cps_exact$yearFromSDRFactor == '12')
+
+cps_exact$`treat14` <- as.numeric(cps_exact$yearFromSDRFactor == '14')
+
+cps_exact$`treat16` <- as.numeric(cps_exact$yearFromSDRFactor == '16')
+
+cps_exact$include <- as.numeric(cps_exact$yearFromSDR <=16 & 
+                                  cps_exact$yearFromSDR >=(-16))
+
+# Code those with NAs in yearSDR as not having SDR
+cps_exact$yearSDR_did <- ifelse(is.na(cps_exact$yearSDR), 0, cps_exact$yearSDR)
+gc()
+```
+
+"Bivariate" results (This outputs an exact replication of Figure A2 in original paper)
+
+```{r, fig.width=8, fig.height=5}
+# By age-group
+age_group_levels = c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+
+# Store results for each age group
+age_group_results <- list()
+
+# For each age group
+for (group_level in age_group_levels){
+  #Fit a regression to get the per-period tests
+
+  dyn_reg_1 <- lm_robust(voted ~ `treat-16` +  `treat-14` +  `treat-12` +  
+                           `treat-10`  + `treat-8`  + `treat-6` + `treat-4` + 
+                           `treat0`  + `treat2`  + `treat4`  + `treat6` +  
+                           `treat8` + `treat10` +`treat12`  + `treat14`  + 
+                           `treat16` , fixed_effects = ~ as.factor(year) + 
+                           as.factor(state), data=cps_exact[
+                             cps_exact$age_group==group_level &
+                               (cps_exact$yearFromSDR>=(-16) &
+                                  cps_exact$yearFromSDR<=16) & 
+                               !is.na(cps_exact$voted),])
+  # Original paper clustered wrong, so don't do CRSEs
+  
+  # Make into a plotting set
+  dyn_plot_1 <- tidy(dyn_reg_1) %>% 
+    filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove(term, fixed("treat")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_1 <- rbind(dyn_plot_1, data.frame(period = -2, estimate = 0, 
+                                             conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_1$age_group <- group_level
+  
+  # Append age_group_results
+  age_group_results[[group_level]] <- dyn_plot_1
+  
+}
+
+dyn_plot_combined <- bind_rows(age_group_results)
+
+# Coefficient plot
+exact_1 <- dyn_plot_combined %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  + 
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-0.1,-0.05,0,0.05,0.1), limits=c(-.1,.1)) +
+  theme_classic()
+
+print(exact_1)
+ggsave("figs/pretrend_by_age_exact_1.png",exact_1, width = 7, height = 4.3)
+ggsave("figs/pretrend_by_age_exact_1.pdf",exact_1, width = 7, height = 4.3)
+```
+
+# Corrected replications
+
+## Replication 1 (The replication figure we use in our paper)
+
+Changes: 
+- Clustered the SEs (the original paper's code contained a typo for clustered standard errors, which we correct here)
+
+```{r, fig.width=8, fig.height=5}
+# By age-group
+age_group_levels = c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+
+# Store results for each age group
+age_group_results <- list()
+
+# For each age group
+for (group_level in age_group_levels){
+  #Fit a regression to get the per-period tests
+
+  dyn_reg_1 <- lm_robust(voted ~ `treat-16` + `treat-14` + `treat-12` + 
+                           `treat-10`  + `treat-8`  + `treat-6` + `treat-4` + 
+                           `treat0`  + `treat2`  + `treat4`  + `treat6` +  
+                           `treat8` + `treat10` +`treat12` + `treat14` + 
+                           `treat16`, 
+                         fixed_effects = 
+                           ~ as.factor(year) + as.factor(state), 
+                         data=cps_exact[
+                             cps_exact$age_group==group_level &
+                               (cps_exact$yearFromSDR>=(-16) &
+                                  cps_exact$yearFromSDR<=16)&
+                               !is.na(cps_exact$voted),], 
+                         clusters=state, se_type="stata")
+  
+  #print(dyn_reg_1)
+  
+  # Make into a plotting set
+  dyn_plot_1 <- tidy(dyn_reg_1) %>% filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove(term, fixed("treat")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_1 <- rbind(dyn_plot_1, data.frame(period = -2, estimate = 0, 
+                                             conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_1$age_group <- group_level
+  
+  age_group_results[[group_level]] <- dyn_plot_1
+  
+}
+
+dyn_plot_combined <- bind_rows(age_group_results)
+
+# Coefficient plot
+replication_1 <- dyn_plot_combined %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  +
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-.2,-.15, -0.1,-0.05,0,0.05,0.1,0.15, 0.2), 
+                     limits=c(-.2,.2)) +
+  theme_classic()
+
+print(replication_1)
+
+ggsave("figs/pretrend_by_age_rep_1.png",replication_1, width = 7, height = 4.3)
+
+ggsave("figs/pretrend_by_age_rep_1.pdf",replication_1, width = 7, height = 4.3)
+```
+
+## Replication 2 (First extension)
+
+Changes
+- Clustered the SEs
+- Dropped the always-treated groups
+- Correctly re-coded the never-treated groups
+
+```{r, warning=F, results="hide", message=F}
+
+### From original replication code
+agg_cps_age <- aggregate(voted ~ state + year + sdr + presidential_year + age_group, 
+                         cps, mean, na.rm=T)
+
+agg_cps_age <- agg_cps_age[order(agg_cps_age$state, agg_cps_age$year),]
+
+firstyears <- do.call("rbind", as.list(by(agg_cps_age[agg_cps_age$sdr==1,],
+                                          agg_cps_age$state[agg_cps_age$sdr==1],
+                                          head, n=1)))
+firstyears$yearSDR <- firstyears$year
+
+agg_cps_age <- join(agg_cps_age, firstyears[,c("state", "yearSDR")])
+
+# Make a variable for how many years away a unit is from its treatment time 
+# (0 is the time of treatment initiation, -1 is the time *just* before treatment)
+agg_cps_age <- agg_cps_age %>% mutate(yearFromSDR = year - yearSDR)
+
+# ever-treated variable
+agg_cps_age$ever_treated[is.na(agg_cps_age$yearFromSDR)] <- 0
+agg_cps_age$ever_treated[!is.na(agg_cps_age$yearFromSDR)] <- 1
+
+# all never-treateds' yearFromSDR get assigned '0' 
+agg_cps_age$yearFromSDR[is.na(agg_cps_age$yearFromSDR)] <- Inf
+
+# Which ones are always treated
+agg_cps_age$always_treated <- 0
+agg_cps_age$always_treated[agg_cps_age$yearSDR == 1978] <- 1
+
+# Ohio reverses
+agg_cps_age$reversed <- 0
+agg_cps_age$reversed[agg_cps_age$state == "Ohio"] <- 1
+
+cps_rep2 <- join(cps, agg_cps_age[agg_cps_age$age_group=="18-24",
+                                  c("state", "year", "yearFromSDR", 
+                                    "ever_treated", "always_treated", 
+                                    "reversed")])
+gc()
+
+cps_rep2$yearFromSDR <- as.numeric(cps_rep2$yearFromSDR)
+
+# Make the dummy variables using the factor syntax - make -2 the reference period
+cps_rep2$yearFromSDRFactor <- relevel(as.factor(cps_rep2$yearFromSDR), ref="-2")
+
+cps_rep2$`treat-16` <- as.numeric(cps_rep2$yearFromSDRFactor == '-16')
+
+cps_rep2$`treat-14` <- as.numeric(cps_rep2$yearFromSDRFactor == '-14')
+
+cps_rep2$`treat-12` <- as.numeric(cps_rep2$yearFromSDRFactor == '-12')
+
+cps_rep2$`treat-10` <- as.numeric(cps_rep2$yearFromSDRFactor == '-10')
+
+cps_rep2$`treat-8` <- as.numeric(cps_rep2$yearFromSDRFactor == '-8')
+
+cps_rep2$`treat-6` <- as.numeric(cps_rep2$yearFromSDRFactor == '-6')
+
+cps_rep2$`treat-4` <- as.numeric(cps_rep2$yearFromSDRFactor == '-4')
+
+cps_rep2$`treat-2` <- as.numeric(cps_rep2$yearFromSDRFactor == '-2')
+
+cps_rep2$`treat0` <- as.numeric(cps_rep2$yearFromSDRFactor == '0')
+
+cps_rep2$`treat2` <- as.numeric(cps_rep2$yearFromSDRFactor == '2')
+
+cps_rep2$`treat4` <- as.numeric(cps_rep2$yearFromSDRFactor == '4')
+
+cps_rep2$`treat6` <- as.numeric(cps_rep2$yearFromSDRFactor == '6')
+
+cps_rep2$`treat8` <- as.numeric(cps_rep2$yearFromSDRFactor == '8')
+
+cps_rep2$`treat10` <- as.numeric(cps_rep2$yearFromSDRFactor == '10')
+
+cps_rep2$`treat12` <- as.numeric(cps_rep2$yearFromSDRFactor == '12')
+
+cps_rep2$`treat14` <- as.numeric(cps_rep2$yearFromSDRFactor == '14')
+
+cps_rep2$`treat16` <- as.numeric(cps_rep2$yearFromSDRFactor == '16')
+
+# Create indicator for inclusion in the regression
+cps_rep2$include <- as.numeric(cps_rep2$yearFromSDR <=16 & 
+                                 cps_rep2$yearFromSDR >=(-16) & 
+                                 cps_rep2$always_treated ==0)
+```
+
+# Coefficient plot
+
+```{r}
+
+# By age-group
+age_group_levels = c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+
+# Store results for each age group
+age_group_results <- list()
+
+# For each age group
+for (group_level in age_group_levels){
+  #Fit a regression to get the per-period tests
+
+  dyn_reg_rep2 <- lm_robust(voted ~ `treat-16` +  `treat-14` +  `treat-12` +  
+                              `treat-10`  + `treat-8`  + `treat-6` + `treat-4` +
+                              `treat0`  + `treat2`  + `treat4`  + `treat6` +  
+                              `treat8` + `treat10` +`treat12`  + `treat14`  + 
+                              `treat16` , 
+                         fixed_effects = ~ as.factor(year) + as.factor(state),
+                         data=cps_exact[
+                           cps_exact$age_group==group_level & 
+                             (cps_rep2$include == 1| 
+                                cps_rep2$yearFromSDRFactor == "Inf") &
+                             (cps_exact$yearFromSDR>=(-16) &
+                                cps_exact$yearFromSDR<=16) & 
+                             !is.na(cps_exact$voted),], 
+                         clusters=state, se_type="stata")
+  
+  #print(dyn_reg_rep2)
+  
+  # Make into a plotting set
+  dyn_plot_2 <- tidy(dyn_reg_rep2) %>% 
+    filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove(term, fixed("treat")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_2 <- rbind(dyn_plot_2, data.frame(period = -2, estimate = 0, 
+                                             conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_2$age_group <- group_level
+  
+  age_group_results[[group_level]] <- dyn_plot_2
+  
+}
+
+dyn_plot_combined <- bind_rows(age_group_results)
+
+# Coefficient plot
+replication_2 <- dyn_plot_combined %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  + 
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-.2,-.15, -0.1,-0.05,0,0.05,0.1,0.15, 0.2), 
+                     limits=c(-.2,.2)) +
+  theme_classic()
+
+print(replication_2)
+ggsave("figs/pretrend_by_age_rep_2.png",replication_2, width = 7, height = 4.3)
+ggsave("figs/pretrend_by_age_rep_2.pdf",replication_2, width = 7, height = 4.3)
+```
+
+Drop those treated super-late
+```{r}
+
+# Coefficient plot
+# By age-group
+age_group_levels = c("18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+
+# Store results for each age group
+age_group_results <- list()
+
+# For each age group
+for (group_level in age_group_levels){
+  #Fit a regression to get the per-period tests
+
+  dyn_reg_rep3 <- lm_robust(voted ~ `treat-16` +  `treat-14` +  `treat-12` +  
+                              `treat-10`  + `treat-8`  + `treat-6` + `treat-4`+ 
+                              `treat0`  + `treat2`  + `treat4`  + `treat6` + 
+                              `treat8` + `treat10` +`treat12`  + `treat14`  + 
+                              `treat16` , 
+                         fixed_effects = ~ as.factor(year) + as.factor(state),
+                         data=cps_exact[
+                           cps_exact$age_group==group_level&
+                             (cps_rep2$include == 1|
+                                cps_rep2$yearFromSDRFactor == "Inf") &
+                             (cps_exact$yearFromSDR>=(-16) &
+                                cps_exact$yearFromSDR<=16) & 
+                             !is.na(cps_exact$voted),] %>% 
+                           filter(!(st %in% c("UT", "HI", "VT"))), 
+                         clusters=state, se_type="stata")
+  
+  #print(dyn_reg_rep3)
+  
+  # Make into a plotting set
+  dyn_plot_3 <- tidy(dyn_reg_rep3) %>% 
+    filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove(term, fixed("treat")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_3 <- rbind(dyn_plot_3, data.frame(
+    period = -2, estimate = 0, conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_3$age_group <- group_level
+  
+  age_group_results[[group_level]] <- dyn_plot_3
+  
+}
+
+dyn_plot_combined <- bind_rows(age_group_results)
+
+# Coefficient plot
+replication_3 <- dyn_plot_combined %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  + 
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-.2,-.15, -0.1,-0.05,0,0.05,0.1,0.15, 0.2), 
+                     limits=c(-.2,.2)) +
+  theme_classic()
+
+print(replication_3)
+
+ggsave("figs/pretrend_by_age_dropped_late_T.png",replication_3, 
+       width = 7, height = 4.3)
+ggsave("figs/pretrend_by_age_dropped_late_T.pdf",replication_3, 
+       width = 7, height = 4.3)
+```
+
+### corrected replication using CS did estimator
+- Control group: never treated and yet-to-be-treated
+- Base period (placebo): universal (set to -1)
+
+```{r, warning=F, message=F}
+######did correct spec#####
+for (group_level in age_group_levels){
+  
+  # Use att_gt from did to retrieve ATTs
+  dyn_reg_rep_did2 <- att_gt(yname = "voted",
+                        tname = "year",
+                        idname = "statefip",
+                        gname = "yearSDR_did",
+                        xformla = ~1,
+                        base_period = "universal",
+                        control_group = c("nevertreated", "notyettreated"),
+                        allow_unbalanced_panel = T,
+       data=cps_exact[cps_exact$age_group==group_level& 
+                        (cps_exact$yearFromSDR>=(-16) &
+                           cps_exact$yearFromSDR<=16)&
+                        !is.na(cps_exact$voted),])
+
+dyn_reg_rep_did2 <- aggte(dyn_reg_rep_did2, type="dynamic", na.rm = T)
+  
+  #print(dyn_reg_rep_did2)
+  
+  # Make into a plotting set
+  dyn_plot_did2 <- tidy(dyn_reg_rep_did2) %>% 
+    filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove_all(term, ("ATT\\(|\\)")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_did2 <- rbind(dyn_plot_did2, data.frame(period = -2, estimate = 0, 
+                                                   conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_did2$age_group <- group_level
+  
+  age_group_results[[group_level]] <- dyn_plot_did2
+  
+}
+
+dyn_plot_combined_did2 <- bind_rows(age_group_results)
+
+# Coefficient plot
+replication_did2 <- dyn_plot_combined_did2 %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  + 
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-0.2, -.15, -0.1,-0.05,0,0.05,0.1,0.15, 0.2)) +
+  theme_classic()
+
+print(replication_did2)
+
+ggsave("figs/pretrend_by_age_did2_universal.png",replication_did2, width = 7, 
+       height = 4.3)
+ggsave("figs/pretrend_by_age_did2_universal.pdf",replication_did2, width = 7, 
+       height = 4.3)
+
+```
+
+### Corrected replication using CS did estimator
+- Control group: never treated and yet-to-be-treated
+- Base period (placebo): varying (one period before the estimated period)
+
+```{r, warning=F, message=F}
+
+######did correct spec#####
+for (group_level in age_group_levels){
+  #Fit a regression to get the per-period tests
+
+dyn_reg_rep_did3 <- att_gt(yname = "voted",
+                        tname = "year",
+                        idname = "statefip",
+                        gname = "yearSDR_did",
+                        xformla = ~1,
+                        base_period = "varying",
+                        control_group = c("nevertreated", "notyettreated"),,
+                        allow_unbalanced_panel = T,
+                        data=cps_exact[
+                          cps_exact$age_group==group_level& 
+                            (cps_exact$yearFromSDR>=(-16) &
+                               cps_exact$yearFromSDR<=16)&
+                            !is.na(cps_exact$voted),])
+
+dyn_reg_rep_did3 <- aggte(dyn_reg_rep_did3, type="dynamic", na.rm = T)
+  
+  #print(dyn_reg_rep_did3)
+  
+  # Make into a plotting set
+  dyn_plot_did3 <- tidy(dyn_reg_rep_did3) %>% filter(!is.na(estimate)) %>% 
+    mutate(term = str_remove_all(term, "`")) %>% 
+    mutate(period = as.numeric(str_remove_all(term, ("ATT\\(|\\)")))) %>% 
+    select(period, estimate, conf.low, conf.high)
+  
+  # Tack on the baseline
+  dyn_plot_did3 <- rbind(dyn_plot_did3, data.frame(
+    period = -2, estimate = 0, conf.low = NA, conf.high = NA))
+  
+  # Label the age_group
+  dyn_plot_did3$age_group <- group_level
+  
+  age_group_results[[group_level]] <- dyn_plot_did3
+  
+}
+
+dyn_plot_combined_did3 <- bind_rows(age_group_results)
+
+# Coefficient plot
+replication_did3 <- dyn_plot_combined_did3 %>% 
+  ggplot(aes(x=as.numeric(period), y = estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  facet_wrap(~age_group) +
+  geom_vline(xintercept = -0, lty=2) + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect")  + 
+  scale_x_continuous(breaks=c(-16,-12,-8,-4,0,4,8,12,16)) +
+  scale_y_continuous(breaks=c(-0.2, -.15, -0.1,-0.05,0,0.05,0.1,0.15, 0.2)) +
+  theme_classic()
+
+print(replication_did3)
+
+ggsave("figs/pretrend_by_age_did3_varying.png",replication_did3, width = 7, 
+       height = 4.3)
+ggsave("figs/pretrend_by_age_did3_varying.pdf",replication_did3, width = 7, 
+       height = 4.3)
+
+```
