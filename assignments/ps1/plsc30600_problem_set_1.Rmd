@@ -1,7 +1,7 @@
 ---
 title: 'PLSC 30600: Problem Set 1'
 author: "YOUR NAME"
-date: "January 3, 2024"
+date: "January 7, 2024"
 output:
   pdf_document: default
   html_document:
@@ -17,7 +17,7 @@ library(haven)
 ```
 
 
->This problem set is due at **11:59 pm on Tuesday, January 16th**.
+>This problem set is due at **11:59 pm on Monday, January 20th**.
 
 >Please upload your solutions as a .pdf file saved as "Yourlastname_Yourfirstinitial_pset1.pdf"). In addition, an electronic copy of your .Rmd file (saved as "Yourlastname_Yourfirstinitial_pset1.Rmd") must be submitted to the course website at the same time. We should be able to run your code without error messages. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted.
 
@@ -127,7 +127,7 @@ We observe a small sample of $N=10$ observations. Each unit is assigned treatmen
 
 ## Part A
 
-Suppose treatment was assigned via independent Bernoulli trials with a constant probability of treatment $Pr(D_i = 1) = .5$ and $D_i {\perp \! \! \! \perp} D_j$ for all units $i \neq j$. Condition on there being at least one control group and one treated group respondent in the sample. Using a monte carlo simulation and assuming the data-generating process above, find the variance of the sampling distribution of the simple difference-in-means estimator for $\tau$ (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations).
+Suppose treatment was assigned via independent Bernoulli trials with a constant probability of treatment $Pr(D_i = 1) = .5$ and $D_i {\perp \! \! \! \perp} D_j$ for all units $i \neq j$. Condition on there being at least one control group and one treated group respondent in the sample (in other words, re-randomize if you generate a sample with no treated or no control units). Using a monte carlo simulation and assuming the data-generating process above, find the variance of the sampling distribution of the simple difference-in-means estimator for $\tau$ (use `60637` as your random seed set at the beginning of the code fragment and use $10000$ monte carlo iterations).
 
 ## Part B
 
