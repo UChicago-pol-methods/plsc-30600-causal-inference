@@ -365,7 +365,84 @@ tidy(lm_robust(After ~ I(treatment == "High")*I(Male - mean(Male)), data=exercis
 
 ---
 
+# Bonus: Illustrating Blocking
+
+- Recall our six-observation example and suppose we also observed a binary covariate $X_i$
+  
+Unit  $i$  | Covariate  $X_i$  | $Y_i(1)$ | $Y_i(0)$ |
+:---------:|:-----------------:|:--------:|:--------:|
+ $1$       |  $1$              |  $5$     |   $0$    |
+ $2$       |  $0$              |  $2$     |  $-3$    |
+ $3$       |  $1$              |  $9$     |   $4$    |
+ $4$       |  $0$              |  $4$     |   $-1$   |
+ $5$       |  $0$              |  $1$     |   $-4$   |
+ $6$       |  $0$              |  $2$     |   $-3$   |
+ 
+--
+
+- Suppose we blocked on $X_i$.
+  - All randomizations have to have exactly the same proportion of $X_i = 1$ in treated and control.
+
 ---
+
+# Bonus: Illustrating Blocking
+
+- Compare the unblocked assignment process
+  
+```{r}
+### Define the data frame
+data <- data.frame(Y_1 = c(5,2,9,4,1,2), 
+                   Y_0 = c(0, -3, 4, -1, -4, -3),
+                   X = c(1, 0, 1, 0, 0, 0))
+
+## Simulate the sampling distribution
+nIter = 10000
+sate_est = rep(NA, nIter)
+set.seed(60637)
+
+for(i in 1:nIter){
+  data$D = sample(rep(c(0,1), each=3))
+  data$Y = data$D*data$Y_1 + (1-data$D)*data$Y_0
+  sate_est[i] = mean(data$Y[data$D==1]) - mean(data$Y[data$D==0])
+}
+```
+
+---
+
+# Bonus: Illustrating Blocking
+
+- To the blocked process
+  
+```{r}
+## Simulate the sampling distribution
+nIter = 10000
+blocked_sate_est = rep(NA, nIter)
+set.seed(60637)
+
+for(i in 1:nIter){
+  data$D <- NA
+  data$D[data$X == 1] = sample(rep(c(0,1), each=1))
+  data$D[data$X == 0] = sample(rep(c(0,1), each =2))
+  data$Y = data$D*data$Y_1 + (1-data$D)*data$Y_0
+  blocked_sate_est[i] = mean(data$Y[data$D==1]) - mean(data$Y[data$D==0])
+}
+sims <- data.frame(est = c(sate_est, blocked_sate_est),
+                   randomize = rep(c("Unblocked", "Blocked"), each=nIter))
+```
+
+---
+
+# Bonus: Illustrating Blocking
+
+```{r, echo=F, fig.width=12, fig.height=7, fig.align='center'}
+sims %>% ggplot(aes(x=est)) + geom_histogram(bins=30) +
+  geom_vline(xintercept= 5, lty=2, col="red") +
+  facet_wrap(~randomize, scales="fixed") +
+  labs(x="SATE Estimator", y="Draws") + theme_bw(base_size=18)
+```
+
+---
+
 class: title-slide
 
 # Conditional and Joint Treatment Effects
