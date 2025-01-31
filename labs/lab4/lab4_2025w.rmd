@@ -1,0 +1,307 @@
+---
+title: "PLSC 30600 - Lab 4"
+date: "01/31/2025"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(estimatr)
+library(cobalt)
+```
+
+# Analyzing an observational study: Keriakes et. al. (2000)
+
++ This lab looks at an observational study looking at the effect of an experimental drug on survival rates after percutaneous coronary interventions (PCI) - interventions to open blocked coronary arteries (via angioplasty + insertion of a stent). 
++ [Keriakes et. al. (2000)](https://www.sciencedirect.com/science/article/abs/pii/S000287030059810X) look at the effect of a drug called abciximab, a type of antiplatlet drug used to prevent blood clots during these coronary artery interventions. 
++ The dataset consists of 996 patients under observation at Ohio Heart Health, Christ Hospital, Cincinatti in 1997. Each patient received a percutaneous coronary intervention and was under observation for at least 6 months. 
++ At the end of the 6 month period, survival was recorded. Some patients received treatment with abciximab but in a non-random manner. Patients who doctors believed had more severe cases of heart disease were more likely to receive the drug.
+
+```{r, warning=F, message=F}
+pci <- read_csv("pci.csv")
+```
+The relevant variables are
+
+- `sixMonthSurvive` - Survival at 6 months - Main outcome of interest
+- `abcix` - Treatment with abciximab - Main treatment of interest
+
+Some of the other observed pre-treatment covariates are
+
+- `stent` - Coronary stent deployment; numeric, with 1 meaning YES and 0 meaning NO.
+- `female` - Female gender; numeric, with 1 meaning YES and 0 meaning NO.
+- `diabetic` - Diabetes mellitus diagnosis; numeric, with 1 meaning YES and 0 meaning NO
+- `acutemi` - Acute myocardial infarction within the previous 7 days; numeric, with 1 meaning YES and 0 meaning NO.
+
+# Balance checks before adjustment
+
+Our naive estimate of the treatment effect without adjustment suggests a small positive effect on survival probability (about 3 percentage point).
+
+```{r}
+lm_robust(sixMonthSurvive ~ abcix, data=pci)
+```
+
++ However, we have reason to believe this is biased for the true ATE of abciximab treatment since it was administered to patients with more severe illness. Let's diagnose the covariate balance.
++ The R package `cobalt` is really useful for generating balance tables for weighting estimators - it does a lot of the annoying pre-processing automatically (like standardizing the variables to have a standard deivation of 1).
+
+```{r balance}
+# Subset the covariates we want to a data-frame
+pci_covs <- pci %>% select(stent, female, diabetic, height, acutemi)
+
+# cobalt::bal.tab() will take a matrix of covariates and a treatment indicator and give standardized mean differences
+# it doesn't do t-tests by design (since they can be misleading and are discouraged by more recent work) 
+# standardized mean differences above .1 are often a good threshold to be concerned (https://pubmed.ncbi.nlm.nih.gov/23849158/)
+# s.d.denom="pooled": Setting it to "pooled" means that the standard deviation used in the calculation of standardized differences is pooled across treatment groups. This is a common approach in balance diagnostics to ensure that the magnitude of differences is comparable.
+balance_tab <- bal.tab(pci_covs, treat=pci$abcix, s.d.denom="pooled")
+balance_tab
+
+# We can look not only at the differences in means but in differences of higher-order moments
+# The balance assessment will check not only the linear terms of the covariates but also their squared terms. Including higher-order terms is useful when you suspect that the relationships between the covariates and the treatment or outcome might be more complex than linear.
+balance_tab_sqd  <- bal.tab(pci_covs, treat=pci$abcix, s.d.denom="pooled", poly=2)
+balance_tab_sqd
+
+```
+
+# Propensity score estimation
+
+Now let's estimate the propensity score model. Let's try the easiest model with no interactions or polynomial terms in the linear predictor
+
+```{r}
+# Fit a propensity score model
+pscore_model <- lm_robust(abcix ~ stent + female + diabetic + height + acutemi, 
+                    data=pci)
+summary(pscore_model)
+# Predict the propensity score
+pci$e <- predict(pscore_model, newdata = pci, type = "response")
+# type = "response" gives us the probabilities
+
+# Let's see the histogram of the propensity scores among treated and control
+pci %>% ggplot(aes(x=e)) + 
+  geom_histogram(bins=30) + 
+  facet_wrap(~abcix) + 
+  xlab("Estimated propensity score") + 
+  theme_bw()
+```
+
+This is really quite good in terms of overlap (if we got the model right). Not a lot of 0 or 1 propensity scores. Now let's make the Inverse Probability Treatment Weighting (IPTW) weights
+
+```{r}
+
+# Generate the weights
+pci$wt[pci$abcix == 1] <- 1/pci$e[pci$abcix==1]
+pci$wt[pci$abcix == 0] <- 1/(1 - pci$e[pci$abcix==0])
+
+
+# Generate a point estimate
+iptw_est <- lm_robust(sixMonthSurvive ~ abcix, data=pci, weights=wt)
+point_wtd <- coef(iptw_est)[2]
+point_wtd
+```
+
+Recall that our unadjusted estimate was around 3 percentage points. After adjustment, the estimated effect is closer to 4 percentage points. This is in line with our expectations that the selection-into-treatment bias negatively biased the naive difference-in-means since patients with worse conditions were more likely to get treatment.
+
+# Balance checks after adjustment
+
+We'll come back to inference in a second. But first, let's see how well covariate balance has improved with the weights.
+
+```{r}
+
+# Pass the IPTW weights
+balance_tab_wt <- bal.tab(pci_covs, treat=pci$abcix, s.d.denom="pooled", weights=pci$wt)
+balance_tab_wt
+
+# A mega useful visualization tool to compare unadjusted vs. adjusted 
+# is the "love" plot (named after biostatistician Thomas Love)
+iptw_love_plot <- love.plot(pci_covs, treat=pci$abcix, s.d.denom="pooled", abs=T, poly=2,
+                            binary = "std", weights=pci$wt, thresholds= c(m=.1))
+iptw_love_plot
+```
+
+Note that we even get improvement on the higher-order moments of some of the continuous covariates even though we didn't include them in the model. However, we don't get improvement *everywhere* - post-weighting balance is slightly worse for height (on which there was basically no imbalance to begin with). But overall, weighting does a pretty good job of attenuating the difference in the *observed* covariates between treated and control. Of course, you should keep in mind that this is only addressing balance on covariates that we *observe* - if there's unobserved confounding (which we're assuming there's not), we could be making it worse!
+
+# Bootstrapping
+
+Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations *with replacement* from the sample and computes an estimate for each resample.
+
+```{r}
+set.seed(60637)
+nBoot <- 1000 # Number of iterations
+ate_boot <- rep(NA, nBoot) # Placeholder to store estimates
+
+# For each iteration
+for(boot in 1:nBoot){
+  
+  # Resample rows with replacement
+  pci_boot <- pci[sample(1:nrow(pci), nrow(pci), replace=T),] #replace = T is key!
+  
+  # Fit the propensity score model on the bootstrapped data
+  pscore_model <- lm_robust(abcix ~ stent + female + diabetic + height + acutemi, 
+                      data=pci)
+
+  # Get the propensity scores for each observation
+  pci$e <- predict(pscore_model, newdata = pci) 
+  
+  # Calculate the weights
+  pci_boot$wt_boot <- NA
+  pci_boot$wt_boot[pci_boot$abcix == 1] <- 1/pci_boot$e[pci_boot$abcix==1]
+  pci_boot$wt_boot[pci_boot$abcix == 0] <- 1/(1 - pci_boot$e[pci_boot$abcix==0])
+  
+  # weighted difference-in-means
+  boot_reg <- lm_robust(sixMonthSurvive ~ abcix, data=pci_boot, weights=wt_boot)
+  
+  # Store the weighted difference-in-means
+  ate_boot[boot] <- coef(boot_reg)[2]
+  
+}
+
+# Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference
+sd(ate_boot)
+
+# Asymptotic 95\% CI
+c(point_wtd - qnorm(.975)*sd(ate_boot), 
+  point_wtd + qnorm(.975)*sd(ate_boot))
+
+# Can also take quantiles to get CIs directly from the bootstrapped distribution (esp. if skewed)
+quantile(ate_boot, c(.025, .975))
+
+```
+
+Our 95\% confidence interval does not include $0$ -- we'd reject the null of no ATE at $\alpha = .05$.
+
+
+
+
+# Simulation Illustration:
+
+We simulate a dataset with $n = 1000$ subjects. 
+
+  - Two binary covariates: $X_1$ and $X_2$. 
+
+  - A binary treatment variable $T$ that follows a Bernoulli distribution with probability $0.3 + 0.2 \times X_1 + 0.45 \times X_2$. This introduces an imbalance in the treatment assignment, as the probability of receiving the treatment depends on the covariates.
+
+  - an outcome variable $Y$ is generated for each subject, following a normal distribution with mean $T \times 2 + 0.2 \times X1 + 0.8 \times X2$. This means the outcome depends on both the treatment and the covariates.
+
+
+```{r}
+# Simulate data
+set.seed(60637)
+n <- 1000 # number of subjects
+X1 <- rbinom(n, 1, 0.5) # binary covariate
+X2 <- rbinom(n, 1, 0.2) # binary covariate
+T <- rbinom(n, 1, 0.3 + 0.2 * X1 + 0.45 * X2 ) # treatment assignment with imbalance
+
+# outcomes depend on both treatment and covariates
+Y <- rnorm(n, mean = T * 2+0.2*X1+0.8*X2) 
+
+data = tibble(Y, T, X1, X2)
+```
+
+Naive estimate of the treatment effect without adjustment:
+
+```{r}
+estimatr::tidy(lm_robust(Y ~ T, data=data))
+```
+
+We can see that the CI does not cover the true average treatment effect of 2.
+
+# Propensity score estimation
+```{r}
+ps_model <- lm_robust(T ~ X1*X2, data = data)
+data$ps <- predict(ps_model, newdata = data)
+
+
+# Let's see the histogram of the propensity scores among treated and control
+data %>% ggplot(aes(x=ps)) + 
+  geom_histogram(bins=30) + 
+  facet_wrap(~T) + 
+  xlab("Estimated propensity score") + 
+  theme_bw()
+```
+
+Propensity score weighting
+
+```{r}
+# Apply IPW
+data$weights <- ifelse(T == 1, 1/data$ps, 1/(1-data$ps))
+
+# Assess balance
+
+bal_table_unwtd <- bal.tab(T ~ X1 + X2, data = data, binary = "std", s.d.denom="pooled",
+                     )
+print(bal_table_unwtd)
+# cobalt::bal.tab() will take a matrix of covariates and a treatment indicator and give standardized mean differences# standardized mean differences above .1 are often a good threshold to be concerned (https://pubmed.ncbi.nlm.nih.gov/23849158/)
+```
+
+```{r}
+bal_table_wtd <- bal.tab(T ~ X1 + X2, data = data, binary = "std", weights = data$weights, 
+                     method = "weighting")
+print(bal_table_wtd)
+```
+
+Then, we can see that the balance is improved after weighting.
+
+```{r}
+
+# A mega useful visualization tool to compare unadjusted vs. adjusted 
+# is the "love" plot (named after biostatistician Thomas Love)
+iptw_love_plot <- cobalt::love.plot(data %>% select(X1, X2), treat=data$T, s.d.denom="pooled", abs=TRUE, 
+                            binary = "std", weights=data$weights, thresholds= c(m=.1))
+iptw_love_plot
+```
+
+Next, we estimate the treatment effect using IPW.
+
+```{r}
+# Generate a point estimate
+iptw_est <- lm_robust(Y ~ T, data=data, weights=weights)
+point_wtd <- coef(iptw_est)[2]
+point_wtd
+```
+
+How do we get the standard error? We can use the bootstrap.
+
+# Bootstrapping
+
+Recall again that bootstrapping is a way of approximating the sampling distribution of an estimator and estimating features of it (such as the variance), by resampling from our sample. With independent observations, the nonparametric bootstrap repeatedly resamples observations *with replacement* from the sample and computes an estimate for each resample.
+
+```{r}
+set.seed(60637)
+nBoot <- 1000 # Number of iterations
+ate_boot <- rep(NA, nBoot) # Placeholder to store estimates
+
+# For each iteration
+for(boot in 1:nBoot){
+  
+  # Resample rows with replacement
+  data_boot <- data[sample(1:nrow(data), nrow(data), replace=TRUE),] #replace = T is key!
+  
+  # Fit the propensity score model on the bootstrapped data
+  pscore_model <- lm_robust(T ~ X1*X2, 
+                      data=data_boot)
+
+  # Get the propensity scores for each observation
+  data_boot$ps <- predict(pscore_model, newdata = data_boot) 
+  
+  # Calculate the weights
+  data_boot$wt_boot <- NA
+  data_boot$wt_boot <- ifelse(T == 1, 1/data_boot$ps, 1/(1-data_boot$ps))
+  
+  # weighted difference-in-means
+  boot_reg <- lm_robust(Y ~ T, data=data_boot, weights=data_boot$wt_boot)
+  
+  # Store the weighted difference-in-means
+  ate_boot[boot] <- coef(boot_reg)[2]
+  
+}
+
+# Take the SD of the ate_boot to get our estimated SE - can do asymptotic inference
+sd(ate_boot)
+
+# Asymptotic 95\% CI
+c(point_wtd - qnorm(.975)*sd(ate_boot), 
+  point_wtd + qnorm(.975)*sd(ate_boot))
+
+```
