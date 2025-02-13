@@ -947,8 +947,83 @@ abline(v=0, col="red", lty=2)
 --
 
 - Suggestions:
-  - **Anderson-Rubin (1949)** test statistic in addition to 2SLS t-ratio inference (with a single instrument) - correct coverage/rejection levels even under weak instruments.
+  - Permutation tests using a test statistic that does not depend on the first stage.
+  - **Anderson-Rubin (1949)** approach
   - Angrist and Pischke (2009) - with "just-identified" IV (number of instruments = number of endogenous variables) bias is usually overwhelmed by the large standard errors.
+
+---
+
+# Permutation test
+
+- When the assignment process of $Z_i$ is known, we can construct hypothesis tests using permutation inference assuming a constant treatment effect $\tau$ **(Imbens and Rosenbaum, 2005)**.
+  - With a single, de-meaned instrument $\tilde{Z_i} = Z_i - \bar{Z}$, we can construct a test statistic based on the sample covariance between $Z_i$ and $Y_i$ with the effect removed:
+  
+$$T(\tau) = \frac{1}{N} \sum_{i=1}^N \tilde{Z_i} \times (Y_i - \tau D_i)$$
+
+- If the instrument is valid, under the null hypothesis that $\tau = \tau_0$, we can get the **randomization distribution** of the test statistic by simply re-randomizing treatment according to the known assignment process.
+  - Construct confidence intervals by "inverting the test" - what values of $\tau_0$ does the test fail to reject?
+--
+
+- Alternative test statistics based on ranks of $Y_i - \tau D_i)$ (possibly within strata) can also be used.
+
+---
+
+# Anderson-Rubin Test
+
+- Even when the assignment process is not known, the IV assumptions allow us to construct a test statistic that does not depend on the first stage. 
+  - This is the **Anderson-Rubin (1949)** approach - **Andrews, Stock and Sun (2019)** provide a good explanation especially for the "just-identified" case
+--
+
+- Let $\hat{\delta}_{\text{ITT}}$ be the **reduced form** or intent-to-treat estimate.
+- The instrumental variables assumptions that the reduced form is related to the first stage $\pi$ and the treatment effect $\tau$
+
+$$\delta_{\text{ITT}} = \pi \times \tau$$
+
+--
+
+- Assuming a particular null $H_0: \tau = \tau_0$ implies that 
+
+$$\delta_{\text{ITT}} - \pi \times \tau_0 = 0$$
+
+---
+
+# Anderson-Rubin Test
+
+- And so we can construct a test statistic based on the difference between the estimated ITT and the estimated first stage adjusted by the null which we know is normal in large samples.
+
+$$g(\tau_0) = \hat{\delta}_{\text{ITT}} - \hat{\pi} \tau_0 \sim \mathcal{N}(0, \Omega(\tau_0))$$
+--
+
+- The Anderson-Rubin (1949) test statistic is:
+
+$$AR(\tau) = g(\tau)^\prime \Omega(\tau_0)^{-1}g(\tau)$$
+
+Under the null $H_0: \tau = \tau_0$, this has a chi-squared distribution which does not depend on the value of the first stage.
+
+--
+
+- **Intuitively**: Statistical properties of **differences** in two normal random variables are well-known and easy. Statistical properties of **ratios** are much more complicated!
+  - Again, invert the test to get a confidence interval
+  - Can get **infinite** confidence bounds with a weak instrument - the test **never rejects** for any value of $\tau_0$
+
+---
+
+# Example: Strong instrument
+
+```{r}
+wapo_iv <- ivmodelFormula(voted ~ getpost  | post , data= wapost, heteroSE=T)
+print(AR.test(wapo_iv))
+```
+
+---
+
+# Example: Weak instrument
+
+```{r}
+weak_iv_data <- data.frame(Y = Y, D= D, Z=Z)
+weak_iv <- ivmodelFormula(Y ~ D | Z , data= weak_iv_data, heteroSE=T)
+print(AR.test(weak_iv))
+```
 
 ---
 
@@ -973,5 +1048,6 @@ abline(v=0, col="red", lty=2)
 - Statistical inference is tricky
   - Beware weak instruments - typical large-sample asymptotics do poorly when instruments are irrelevant.
   - Consider weak-instrument robust tests (Anderson-Rubin)
+  - If it's not in the reduced form, it's not real.
 
 ---
