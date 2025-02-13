@@ -824,7 +824,7 @@ iv_robust(voted ~ getpost | post, data=wapost)
 - Most applications of IV are not treatment non-compliance.
 - But all follow the same underlying logic.
   - Treatment of interest is not randomized...but there exists a real or &quot;natural&quot; experiment that is.
-  - And this natural experiment affects the outcome only through its affect on the treatment of interest.
+  - And this natural experiment affects the outcome only through its effect on the treatment of interest.
 --
 
 - Examples:
@@ -1318,13 +1318,13 @@ mean(IV)
 - Let `\(\hat{\delta}_{\text{ITT}}\)` be the **reduced form** or intent-to-treat estimate.
 - The instrumental variables assumptions that the reduced form is related to the first stage `\(\pi\)` and the treatment effect `\(\tau\)`
 
-`$$\delta_{\text{ITT}} = \pi \times \tau$$`
+`$$\delta_{\text{ITT}} = \gamma \times \tau$$`
 
 --
 
 - Assuming a particular null `\(H_0: \tau = \tau_0\)` implies that 
 
-`$$\delta_{\text{ITT}} - \pi \times \tau_0 = 0$$`
+`$$\delta_{\text{ITT}} - \gamma \times \tau_0 = 0$$`
 
 ---
 
@@ -1332,7 +1332,7 @@ mean(IV)
 
 - And so we can construct a test statistic based on the difference between the estimated ITT and the estimated first stage adjusted by the null which we know is normal in large samples.
 
-`$$g(\tau_0) = \hat{\delta}_{\text{ITT}} - \hat{\pi} \tau_0 \sim \mathcal{N}(0, \Omega(\tau_0))$$`
+`$$g(\tau_0) = \hat{\delta}_{\text{ITT}} - \hat{\gamma} \tau_0 \sim \mathcal{N}(0, \Omega(\tau_0))$$`
 --
 
 - The Anderson-Rubin (1949) test statistic is:
