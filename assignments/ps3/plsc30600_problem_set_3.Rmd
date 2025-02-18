@@ -1,7 +1,7 @@
 ---
 title: 'PLSC 30600: Problem Set 3'
 author: '[YOUR NAME]'
-date: "February 13, 2023"
+date: "February 18, 2025"
 output:
   pdf_document: default
   html_document:
@@ -18,7 +18,7 @@ library(haven)
 ```
 
 
->This problem set is due at \textbf{11:59 pm on Tuesday, February 27th}.
+>This problem set is due at \textbf{11:59 pm on Monday, March 3rd}.
 
 >Please upload your solutions as a .pdf file saved as "Yourlastname\_Yourfirstinitial\_pset3.pdf". In addition, an electronic copy of your .Rmd file (saved as "Yourlastname\_Yourfirstinitial\_pset3.Rmd") must be submitted to the course website at the same time. We should be able to run your code without error messages. In order to receive credit, homework submissions must be substantially started and all work must be shown. Late assignments will not be accepted.
 
@@ -73,11 +73,6 @@ Estimate the effect of TWEA exposure on the count of French firm patents using a
 
 We might be concerned that there are differential trends in pre-treatment patenting between those sub-classes exposed to the treatment and those exposed to control. Estimate the difference in the trend in US patents between exposed and unexposed sub-classes from 1918 to 1917, 1916, 1915, and 1914 (four estimates in total: 1918-1917, 1918-1916, 1918-1915, 1918-1914). Provide a 95% robust confidence interval for each of these estimates and interpret your results. Do we reject the null that any of these differ from $0$ (at $\alpha = .05$)? If the outcome trends were evolving in parallel between the treated and control groups, what would we expect these estimates to be? What do your results suggest for the validity of the parallel trends assumption?
 
-## Part E
-
-The authors adjust for covariates out of concern for possible parallel trends violations. One possible confounder that might be driving a parallel trends violation is the overall amount of foreign patenting in the sub-class and its change over time -- reflecting general technological differences that might differ between the patent sub-classes. Since the treatment does not affect the amount of foreign patenting, this is a valid control. 
-
-Create a variable for the change between the post- and pre-treatment count of foreign patents in the USPTO subclass. Use the Abadie (2005) weighting estimator to estimate the ATT under a conditional parallel trends assumption (fit a model for the propensity score using this covariate). Do we reject the null of no treatment effect at the $\alpha = .05$ level? Compare your results to your estimate from Question A and discuss why they might differ.
 
 # Problem 2
 
