@@ -1,0 +1,380 @@
+---
+title: "PLSC 30600 - Lab 7 - Differences-in-differences"
+author: ''
+date: "02/21/2025"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Required packages
+library(tidyverse)
+library(haven)
+
+# Fast fixed-effects
+library(fixest)
+
+# Robust regression
+library(estimatr)
+
+# Visualize distribution
+library(panelView)
+
+# CS DID 
+library(did)
+
+# Print options
+options(digits=3)
+
+```
+
+## Description of paper
+
+Grumbach and Hill (2022) looks at how same day registration (SDR) laws affect turnout for different kinds of voters. It analyzes the effect of these laws on voter turnout in presidential and nonpresidential elections. The key outcome variable is voter turnout. The authors conduct subgroup analysis for different age groups.  
+
+The full citation is
+
+> Grumbach, Jacob M., and Charlotte Hill. "Rock the registration: Same day registration increases turnout of young voters." *Journal of Politics* 84.1 (2022): 405-417.
+
+More details on the replication:
+
+> Li, Zikai, and Anton Strezhnev. "A Guide to Event Study Plots for Political Scientists." *Working Paper* (2024).
+
+|                       |                      |
+|-----------------------|----------------------|
+| Unit                  | Individual (primary) |
+| Time                  | Year                 |
+| Type of design        | Staggered rollout    |
+| Replicated Figure(s)  | Figures A2           |
+  
+# Data description and pre-processing
+  
+The relevant variables are:
+  
+- `year` - Year
+- `state` - State
+- `voted` - Turnout rate
+- `yearSDR` - Year that Same day registration (SDR) was implemented
+- `age_group` - Age group of the individual
+
+This version of the data comes pre-aggregated at the level of the state-year combination. The original paper runs the regression directly on the Current Population Study data (each individual is a row in the data). Because treatment is assigned at the "cluster" level (state), aggregating changes the implicit weights on each unit (remember this question on Problem Set 2!). As a result, the estimates here are going to be slightly different than the estimates in the original paper.
+
+```{r}
+data <- read_csv("sdr_replication.csv")
+```
+
+We need to do some pre-processing to code the treatment variable. The column `yearSDR` indicates the year that each state starts treatment (adopts Same Day Registration).
+
+```{r}
+# yearSDR = NA are the "never-treated" - Recode as "Inf"
+data <- data %>% mutate(yearSDR = case_when(is.na(yearSDR) ~ Inf,
+                                            TRUE ~ yearSDR))
+
+# Make a indicators for whether a unit is "ever treated"
+data <- data %>% mutate(everTreated = yearSDR != Inf)
+
+# Make indicators for when a unit is treated
+data <- data %>% mutate(treated = as.numeric(year >= yearSDR))
+
+# Make a variable for the *relative time* since treatment
+data <- data %>% mutate(relativeTime = year - yearSDR)
+```
+
+Our analysis will focus on the age group of 18-24 year-olds (the focus of the original paper). So we'll subset down to that group.
+
+```{r}
+data <- data %>% filter(age_group == "18-24")
+```
+
+# Visualizing the treatment
+
+We'll always start by visualizing how the treatment varies over time, how many treated units we have and when they start treatment. Remember that with DiD-style identification strategies, the treatment effect identified is an **ATT** - it's specific to the observed distribution of treatment.
+
+```{r, fig.width=8, fig.height=7}
+panelview(D="treated", 
+          data=data, # Need State-year to identify observations uniquely in the data
+          by.timing = T,
+          pre.post = TRUE,
+          index=c("state","year"),
+          xlab="Year",
+          ylab="State",
+          main="Same-Day Registration",
+          axis.adjust=T, 
+          theme.bw = T)
+```
+
+We have a large pool of controls (units that never initiated treatment), which is good. However, we should be aware that we have a handful of "always-treated" observations (Maine, Minnesota and Wisconsin). We can't estimate effects for these units (since there are no pre-treatment observations to use for the DiD) but they do act as "controls" if we run the static TWFE. But for these to be valid "controls" requires us to make strong additional constant effects assumptions (essentially, that there's no persistent effect in the periods under study). This assumption is *in addition* to our standard DiD assumptions (no anticipation and parallel trends), so we probably don't want to make it unless we have compelling beliefs otherwise. 
+
+We'll drop these states from our analysis.
+
+```{r}
+# Make an indicator that we'll filter on later
+data <- data %>% mutate(alwaystreated = as.numeric(yearSDR == min(year)))
+
+# Drop these states
+data <- data %>% filter(alwaystreated == 0)
+```
+
+# Static TWFE
+
+Let's start with the traditional estimation methods for staggered adoption DiD, remembering that both come with additional effect homogeneity assumptions.
+
+The "static" regression is pretty straightforward to do. With `lm_robust`
+
+```{r}
+static_twfe <- lm_robust(voted ~ treated, fixed_effects = ~ as.factor(year) + as.factor(state),
+                         data=data %>% filter(alwaystreated == 0), cluster=state)
+summary(static_twfe)
+```
+
+Alternatively, a popular R package that implements "fast fixed" effects is the `fixest` package. This uses the same trick as we used above to marginalize out the fixed effects without having to estimate them directly. Since the FEs are nuisance parameters and can be understood as simple de-meaning operations, this can improve estimation speed significantly (suppose you have millions of unit FEs for example!)
+
+```{r}
+# Specify fixed effects using the | syntax in the formula
+# By default, SEs are clustered w.r.t. the first FE.
+# SE computation is slightly different (b/c/ of different small-sample correction)
+# See: https://cran.r-project.org/web/packages/fixest/vignettes/standard_errors.html
+static_twfe_2 <- feols(voted ~ treated | state + year, data=data %>% filter(alwaystreated == 0))
+summary(static_twfe_2)
+```
+
+We find a small positive but statistically insignificant effect. Could this be driven by variation in the effect over time? If treatment effects **grow**, then under **staggered adoption**, the static TWFE is going to under-estimate the average of the group-time ATTs.
+
+## Dynamic TWFE
+
+Let's try the dynamic TWFE spec. For each *ever-treated* unit, we need to include a dummy variable for each unique relative time since treatment. We can do this manually, but it's annoying (and easy to mess up). Once we have the dataset we want to use, we can trick R into doing this for us using the `factor()` syntax. If the "never-treateds" get coded as `Inf` or `-Inf`, these end up being dropped as long as the other factors are numeric (b/c of ordering rules about dropping collinear variables in the estimation routines). But make sure to check that this is happening! Software changes and this leverages a particular ordering trick - incorrectly dropping the *wrong* dummy variables can mess things up considerably!
+
+```{r}
+# Make this relative-time number a factor
+# Recode -Inf to Inf so it's the "last" in the order of factors (b/c numbers come before letters and all the other values are numbers)
+data <- data %>% mutate(relativeTime = case_when(relativeTime == -Inf ~ Inf,
+                                                 TRUE ~ relativeTime)) 
+# Baseline is -2 (election prior to the one in which treatment starts)
+data <- data %>% mutate(relativeTimeFactor = relevel(as.factor(relativeTime), ref = "-2"))
+```
+
+We'll pass this to `feols()` and verify that `relativeTimeFactorInf` is getting dropped because of collinearity (as it should)
+
+```{r}
+dynamic_twfe <- feols(voted ~ relativeTimeFactor | state + year,
+                         data=data)
+summary(dynamic_twfe)
+```
+
+We want to summarize these results in a plot - to do so, we'll have to pull out the numbers from the coefficient estimates
+
+```{r}
+dynamic_results <- tidy(dynamic_twfe)
+# Strip out the common "relativeTimeFactor" string from 'term' and convert to number
+dynamic_results <- dynamic_results %>% 
+  mutate(relativeTime = as.numeric(sub("relativeTimeFactor", "", term)))
+# Add in a "0 estimate" for -2 (the omitted baseline period)
+dynamic_results <- bind_rows(dynamic_results, 
+                             data.frame(term = "relativeTimeFactor-2", estimate = 0,
+                                        std.error = NA, statistic = NA, p.value = NA,
+                                        relativeTime = -2))
+
+# Make 95% confidence intervals
+dynamic_results <- dynamic_results %>% mutate(lower.ci = estimate - qnorm(.975)*std.error,
+                                              upper.ci = estimate + qnorm(.975)*std.error)
+
+dynamic_results
+```
+
+Let's plot this! We'll constrain to only a handful of the pre-treatment periods b/c some of the extreme pre-treatment estimates only involve one or two treated states (the latest adopters). So we'll focus on effects 16 years post- and placebos 16 years pre- (8 elections)
+
+```{r, warning = F, fig.width=8, fig.height=6}
+dynamic_results %>% filter(relativeTime <= 16&relativeTime>=-16) %>% 
+  ggplot(aes(x = relativeTime,
+             y = estimate,
+             ymin = lower.ci,
+             ymax = upper.ci)) +
+  geom_pointrange() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Dynamic TWFE") +
+  theme_minimal()
+```
+
+Another way to plot this
+
+```{r, fig.width=8, fig.height=6}
+dynamic_results %>% filter(relativeTime <= 16&relativeTime>=-16) %>% 
+  ggplot(aes(x = relativeTime,
+             y = estimate,
+             ymin = lower.ci,
+             ymax = upper.ci)) +
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Dynamic TWFE") +
+  theme_minimal()
+```
+
+We find evidence that suggests a small short-term positive effect that goes away over time. This got averaged-out to "insignificant" in the static TWFE, but the dynamic results suggest something might be happening!
+
+## Heterogeneity-robust methods
+
+All of the methods we've discussed above make assumptions about effect homogeneity. Static TWFE assumes no variation in treatment effects with respect to *relative-treatment time*. This is implausible if we think that SDR might have a short-term boost to turnout that dissipates over time. Although the dynamic TWFE relaxes this, it imposes its own assumption -- that the relative-time effects for each of the states is the same. This might be violated if, for example, SDR has stronger effects during Presidential vs. non-Presidential years. As a result, states that adopt in Presidential years might have different "first period" effects compared to states that adopt in non-Presidential election years.
+
+There are a lot of alternative "heterogeneity-robust" methods out there. They all do the same thing: restrict the estimator to using *only* the "clean" DiD comparisons. They focus on targeting each group-time ATT separately and then *aggregating up from there* (compared to the regression methods which try to estimate the aggregates directly).
+
+### Sun and Abraham
+
+Sun and Abraham's approach is the easiest, most straightforward and integrates into the two-way fixed effects regression. Because dynamic TWFE is perfectly fine if there's no staggering, Sun and Abraham specify a version of the dynamic TWFE regression that is *equivalent to* a bunch of separate dynamic TWFEs between each "treatment timing group" and the never-treateds. 
+
+The trick is to *interact* the relative-treatment time indicators with a set of indicators for "treatment timing group" (so each group-time ATT gets estimated separately). `fixest` makes this easy to specify (weirdly easier than the dynamic-TWFE!)
+
+```{r}
+# sunab() takes a variable for the "start time" for each unit,
+# the time period
+# and a ref period (-2)
+# ref.c denotes the "never-treated" category
+sunab_twfe <- feols(voted ~ sunab(cohort = yearSDR, period = year, ref.c = Inf, ref.p = -2)| state + year,
+                         data=data)
+summary(sunab_twfe)
+```
+
+`fixest` implicitly aggregates the relative-time effects by averaging over the distribution of cohorts that have each relative-time. So we get output that's similar to what we got in the dynamic case
+
+Let's make a plot!
+
+```{r}
+sunab_results <- tidy(sunab_twfe)
+# Strip out the common "relativeTimeFactor" string from 'term' and convert to number
+sunab_results <- sunab_results %>% 
+  mutate(relativeTime = as.numeric(sub("year::", "", term)))
+# Add in a "0 estimate" for -2 (the omitted baseline period)
+sunab_results <- bind_rows(sunab_results, 
+                             data.frame(term = "year::-2", estimate = 0,
+                                        std.error = NA, statistic = NA, p.value = NA,
+                                        relativeTime = -2))
+
+# Make 95% confidence intervals
+sunab_results <- sunab_results %>% mutate(lower.ci = estimate - qnorm(.975)*std.error,
+                                              upper.ci = estimate + qnorm(.975)*std.error)
+
+```
+
+```{r, fig.width=8, fig.height=6}
+sunab_results %>% filter(relativeTime <= 16&relativeTime>=-16) %>% 
+  ggplot(aes(x = relativeTime,
+             y = estimate,
+             ymin = lower.ci,
+             ymax = upper.ci)) +
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Sun and Abraham TWFE") +
+  theme_minimal()
+```
+
+Ah! It looks like the *dynamic TWFE* regression is also under-estimating the long-run effects! This could be because of calendar time effects that violate the effect homogeneity assumption of the dynamic regression. The effect appears to be much stronger over time!
+
+Note that we still need to omit a baseline period. And crucially, this needs to be *common* to all units in the sample (which is why we typically pick -2). With a "fully dynamic" specification (where only one period is omitted), Sun and Abraham's estimator for each cohort relative-time effect is equivalent to a 2x2 diff-in-diff between each cohort and the *never-treated* units.
+
+We can omit more though - if we want to omit *all* pre-treatment periods (and only estimate effects relative to all of the pre-treatment baselines), we can do that! Incidentally, this is mathematically equivalent to the imputation estimator discussed below.
+
+```{r}
+# sunab() takes a variable for the "start time" for each unit,
+# the time period
+# and a ref period (-2)
+# ref.c denotes the "never-treated" category
+smallest_ref.p <- min(data$relativeTime)
+sunab_twfe_all <- feols(voted ~ sunab(cohort = yearSDR, period = year, ref.c = Inf, ref.p = c(smallest_ref.p:-2))| state + year,
+                         data=data)
+summary(sunab_twfe_all)
+```
+
+## Callaway and Sant'anna
+
+One downside to the fully-saturated Sun and Abraham spec is that we can't use the units that are "not yet" treated as controls for estimating effects for the earlier adopters. If we believe parallel trends holds generally, then these are also valid 2x2 DiDs.
+
+Callaway and Sant'anna take a different approach to estimating the group-time effects. Rather than augmenting the regression, they try to reconstruct the correct set of 2x2 comparisons for each group-time effect. Each group-time ATT is estimating using what amounts to the cross-sectional regression of the *differenced* outcome (between the period of interest and the baseline period) on an indicator for "treatment" among the treated units and valid controls.
+
+This is implemented in `did`. One minor thing - we need to make the state ID numeric
+
+```{r}
+data$stateID <- as.numeric(as.factor(data$state))
+```
+
+```{r}
+# First estimate each group-time effect separately
+cs_did <- att_gt(yname = "voted", 
+                         tname = "year", 
+                         idname = "stateID", 
+                         gname = "yearSDR", 
+                         data= data, control_group = "notyettreated", 
+                         base_period = "universal")
+
+# Then we aggregate - first overall
+# Larger effect than the naive static TWFE!
+cs_did_ate <- aggte(cs_did, type = "simple")
+print(cs_did_ate)
+
+# Aggregate by relative period
+cs_did_dynamic <- aggte(cs_did, type = "dynamic")
+```
+
+Estimates are a bit higher variance (somewhat surprisingly), though this may be driven by the particular standard error estimator being used or issues with small numbers of observations in the Sun and Abraham case. But we see that same long-run growing pattern of effects that was masked by the dynamic TWFE.
+
+```{r}
+tidy(cs_did_dynamic) %>% filter(event.time <= 16&event.time>=-16) %>% 
+  ggplot(aes(x = event.time,
+             y = estimate,
+             ymin = conf.low,
+             ymax = conf.high)) +
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Callaway/Sant'anna") +
+  theme_minimal()
+```
+
+## Imputation
+
+A final approach to estimating the ATTs in a heterogeneity-robust manner is to think of the problem in terms of regression imputation. This is the approach popularized by Borusyak, Jaravel and Spiess in econ and Wang, Liu and Xu in political science. This is implemented in `didimputation` (as well as `fect`)
+
+The core idea is to estimate the TWFE model on the **control observations** (here we actually *do* need to estimate the fixed effect parameters - can't use the fast estimation tricks of `fixest`). We then take this model and **predict** the counterfactual under control for each observation in the treated.
+
+```{r}
+library(didimputation)
+imputation_results <- did_imputation(data = data, yname = "voted", gname = "yearSDR",
+  tname = "year", idname = "state", horizon = T)
+imputation_results
+# Make term numeric for plotting
+imputation_results$term <- as.numeric(imputation_results$term)
+```
+
+Let's make a plot (note that we haven't done any placebo tests here)
+
+```{r}
+imputation_results %>% filter(term <=16) %>% 
+  ggplot(aes(x = term,
+             y = estimate,
+             ymin = conf.low,
+             ymax = conf.high)) +
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Regression imputation") +
+  theme_minimal()
+```
+
+
+Note the precision gains from using *all* pre-treatment periods in estimation. 
+
+However, there are challenges in doing placebo tests. We can't generate imputations *in-sample* because we used those observations to estimate the imputation model. This results in under-estimation of the placebos. So to do valid placebo tests, we need to "hold out" the period we want to get placebo estimates for. It's also a bit challenging to figure out how to compare the baselines for these placebo tests since they shift depending on what we leave out (we're averaging over "close" and "far" placebo comparisons).
+
+
+
+ 
