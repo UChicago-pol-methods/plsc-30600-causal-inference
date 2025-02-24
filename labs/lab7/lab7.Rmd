@@ -375,6 +375,88 @@ Note the precision gains from using *all* pre-treatment periods in estimation.
 
 However, there are challenges in doing placebo tests. We can't generate imputations *in-sample* because we used those observations to estimate the imputation model. This results in under-estimation of the placebos. So to do valid placebo tests, we need to "hold out" the period we want to get placebo estimates for. It's also a bit challenging to figure out how to compare the baselines for these placebo tests since they shift depending on what we leave out (we're averaging over "close" and "far" placebo comparisons).
 
+## Bootstrap
 
+An alternative approach to doing variance estimation here is the bootstrap (which in this case gives pretty similar results to the variance estimator from Borusyak, Jaravel and Spiess). However, with fixed effect models, it can be cumbersome to implement a typical block bootstrap where we resample states. We may get draws where it is *impossible* to estimate certain parameters because we draw an insufficient number of observations that have a particular tretament history (e.g. if we have few never-treated units and never sample any). An alternative to the typical pairs bootstrap is what is referred to as the "bayesian bootstrap" or the "fractionally-weighted bootstrap". Instead of assigning each observation a random integer weight (as is the case of the conventional bootstrap), this approach randomly samples a *continuous* weight from a Dirichlet distribution (which guarantees that the weights sum to $1$). A simple way of doing this for the Dirichlet(1) distribution is to sample each weight i.i.d. from an Exponential distribution with rate parameter $1$ and re-normalize the weights.
+
+There's a nice review of this approach here and it's worth having in your data analyst toolbox - [Fractionally Weighted Bootstrap](https://ngreifer.github.io/fwb/)
+
+We start by getting the point estimates via our imputation approach and take the average over each of the relative-treatment time periods.
+
+```{r}
+# Point estimates
+control_model <- lm(voted ~ as.factor(state) + as.factor(year),
+                    data = data %>% filter(treated == 0))
+
+# Impute
+data$voted_0 <- predict(control_model, newdata = data)
+
+# Calculate
+data$effect <- data$voted - data$voted_0
+
+# Avergae
+imputation_estimates <- data %>% filter(treated == 1) %>% group_by(relativeTime) %>%
+  summarize(att = mean(effect))
+imputation_estimates
+```
+
+
+We can confirm that we get the exact same results as above in terms of the point estimates.
+
+Now, for the standard errors, we'll re-sample weights for each state from an Exponential(1) distribution and fit a *weighted* least squares regression on the controls. 
+
+Still using those weights, we'll take the average of the imputed ATTs for each relative time period. After running the bootstrap for 1000 iterations, we'll calculate 95% CIs using the quantiles of the bootstrap distribution.
+
+```{r}
+set.seed(60639)
+nBoot <- 2000
+att_boot <- matrix(nrow=nrow(imputation_estimates), ncol=nBoot)
+
+# For each iteration
+for (i in 1:nBoot){
+  # Generate weights on each state
+  state_weights <- data.frame(state = unique(data$state), weight = rexp(length(unique(data$state)), 1))
+  
+  # Merge to make new data frame
+  data_boot <- data %>% left_join(state_weights, by="state")
+  
+  # Point estimates
+  control_model_boot <- lm(voted ~ as.factor(state) + as.factor(year),
+                      data = data_boot %>% filter(treated == 0), weights=weight)
+  
+  # Impute
+  data$voted_0_boot <- predict(control_model_boot, newdata = data_boot)
+  
+  # Calculate
+  data$effect_boot <- data$voted - data$voted_0_boot
+  
+  # Avergae
+  imputation_estimates_boot <- data_boot %>% filter(treated == 1) %>% group_by(relativeTime) %>%
+    summarize(att = weighted.mean(effect, weight))
+  
+  att_boot[,i] <- imputation_estimates_boot$att
+  
+}
+
+imputation_estimates$se <- apply(att_boot, 1, sd)
+imputation_estimates$lower.95 <- apply(att_boot, 1, function(x) quantile(x, .025))
+imputation_estimates$upper.95 <- apply(att_boot, 1, function(x) quantile(x, .975))
+```
+
+Make a plot again. Interestingly, we get comparable results for the first period effect (because lots of observations have effects 1-period out), but much higher variance for the later effects (which are essentially 1-treated observation). This might be a case where the asymptotic approximations have very poor properties in finite samples and the bootstrap provides a bit of an improvement (see Amanda Weiss' work on power/inference in 50-state studies for more).
+
+```{r}
+imputation_estimates %>% filter(relativeTime <=16) %>% 
+  ggplot(aes(x = relativeTime,
+             y = att,
+             ymin = lower.95,
+             ymax = upper.95)) +
+  geom_ribbon(fill="grey80") +
+  geom_line() +
+  geom_vline(xintercept = -1, lty=2, col="darkgrey") + geom_hline(yintercept = 0, lty=2) +
+  xlab("Years Until SDR Implementation") + ylab("Treatment Effect") +
+  ggtitle("Regression imputation (bootstrapped CIs)") +
+  theme_minimal()
+```
 
  
